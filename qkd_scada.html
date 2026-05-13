@@ -312,8 +312,11 @@
     color: var(--ink);
     letter-spacing: -0.02em;
     transform-origin: right center;
-    transition: transform .3s cubic-bezier(.5,1.6,.4,1), text-shadow .35s;
+    /* sync scale-up and glow-up so they land as a single pulse */
+    transition: transform .3s cubic-bezier(.5,1.6,.4,1),
+                text-shadow .3s cubic-bezier(.22,.61,.36,1);
     text-shadow: 0 0 22px rgba(255,255,255,0.22);
+    will-change: transform, text-shadow;
   }
   .score-hud .score-sub {
     font-family: var(--mono);
@@ -969,11 +972,28 @@
   const canvas = document.getElementById('webgl');
   const renderer = new THREE.WebGLRenderer({
     canvas, antialias: true, alpha: false,
-    powerPreference: 'high-performance'
+    powerPreference: 'high-performance',
+    premultipliedAlpha: true
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x000000, 1);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  // soft round-particle texture, reused so every dot/glow has feathered edges
+  const softParticleTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const cx = c.getContext('2d');
+    const g = cx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0,    'rgba(255,255,255,1)');
+    g.addColorStop(0.45, 'rgba(255,255,255,0.35)');
+    g.addColorStop(1,    'rgba(255,255,255,0)');
+    cx.fillStyle = g;
+    cx.fillRect(0, 0, 64, 64);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  })();
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x000000, 0.045);
@@ -987,14 +1007,14 @@
   const ico1 = new THREE.IcosahedronGeometry(5.4, 3);
   const wire1 = new THREE.LineSegments(
     new THREE.EdgesGeometry(ico1),
-    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18 })
+    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, depthWrite: false })
   );
   group.add(wire1);
 
   const ico2 = new THREE.IcosahedronGeometry(3.6, 2);
   const wire2 = new THREE.LineSegments(
     new THREE.EdgesGeometry(ico2),
-    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 })
+    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false })
   );
   group.add(wire2);
 
@@ -1009,8 +1029,10 @@
   const pointGeo = new THREE.BufferGeometry();
   pointGeo.setAttribute('position', new THREE.Float32BufferAttribute(uniqueVerts, 3));
   const pointMat = new THREE.PointsMaterial({
-    color: 0xffffff, size: 0.07, transparent: true, opacity: 0.85,
-    sizeAttenuation: true
+    color: 0xffffff, size: 0.12, transparent: true, opacity: 0.85,
+    sizeAttenuation: true, depthWrite: false,
+    map: softParticleTex, alphaTest: 0.01,
+    blending: THREE.AdditiveBlending
   });
   group.add(new THREE.Points(pointGeo, pointMat));
 
@@ -1027,9 +1049,13 @@
   const fieldGeo = new THREE.BufferGeometry();
   fieldGeo.setAttribute('position', new THREE.Float32BufferAttribute(fieldPositions, 3));
   const field = new THREE.Points(fieldGeo, new THREE.PointsMaterial({
-    color: 0xffffff, size: 0.03, transparent: true, opacity: 0.45,
-    sizeAttenuation: true
+    color: 0xffffff, size: 0.07, transparent: true, opacity: 0.55,
+    sizeAttenuation: true, depthWrite: false,
+    map: softParticleTex, alphaTest: 0.01,
+    blending: THREE.AdditiveBlending,
+    fog: false
   }));
+  field.renderOrder = -2;
   scene.add(field);
 
   // orbital satellites
@@ -1043,7 +1069,9 @@
   ];
   satelliteConfigs.forEach(cfg => {
     const edges = new THREE.EdgesGeometry(cfg.geom);
-    const mat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: cfg.opacity });
+    const mat = new THREE.LineBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: cfg.opacity, depthWrite: false
+    });
     const wire = new THREE.LineSegments(edges, mat);
     const orbit = new THREE.Group();
     orbit.rotation.set(cfg.tilt[0], cfg.tilt[1], cfg.tilt[2]);
@@ -1101,10 +1129,14 @@
   function spawnPop(worldPos, color = 0xffffff) {
     const pop = new THREE.Mesh(
       new THREE.RingGeometry(0.15, 0.22, 36),
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, side: THREE.DoubleSide })
+      new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: 1, side: THREE.DoubleSide,
+        depthWrite: false, blending: THREE.AdditiveBlending, fog: false
+      })
     );
     pop.position.copy(worldPos);
     pop.lookAt(camera.position);
+    pop.renderOrder = 2;
     pop.userData = { life: 0, max: 0.55 };
     scene.add(pop);
     popFx.push(pop);
@@ -1158,10 +1190,14 @@
       const pos = projectToScene(e.clientX, e.clientY, -2);
       const ring = new THREE.Mesh(
         new THREE.RingGeometry(0.1, 0.14, 48),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide })
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide,
+          depthWrite: false, blending: THREE.AdditiveBlending, fog: false
+        })
       );
       ring.position.copy(pos);
       ring.lookAt(camera.position);
+      ring.renderOrder = 2;
       ring.userData = { life: 0 };
       scene.add(ring);
       ripples.push(ring);
@@ -1297,21 +1333,11 @@
     let tx = cx, ty = cy;
     cursor.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`;
     document.body.classList.add('custom-cursor');
-    let magActive = false, magX = 0, magY = 0, magW = 0, magH = 0, magStrength = 0;
     window.addEventListener('mousemove', (e) => { tx = e.clientX; ty = e.clientY; });
     function loop() {
-      let fx = tx, fy = ty;
-      if (magActive) {
-        const dx = magX - tx, dy = magY - ty;
-        const dist = Math.hypot(dx, dy);
-        const radius = Math.max(magW, magH);
-        const falloff = Math.max(0, 1 - dist / (radius * 1.8));
-        const pull = magStrength * falloff;
-        fx = tx + dx * pull;
-        fy = ty + dy * pull;
-      }
-      cx += (fx - cx) * 0.16;
-      cy += (fy - cy) * 0.16;
+      // critically-damped smoothing — silky trail, no magnetic snap.
+      cx += (tx - cx) * 0.16;
+      cy += (ty - cy) * 0.16;
       cursor.style.transform = `translate3d(${cx}px, ${cy}px, 0) translate(-50%, -50%)`;
       requestAnimationFrame(loop);
     }
@@ -1319,20 +1345,6 @@
     document.querySelectorAll('a, button').forEach(el => {
       el.addEventListener('mouseenter', () => cursor.classList.add('hover'));
       el.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
-    });
-    const MAGNET_SEL = ['nav a', '.contact-cell a', '.cta'].join(',');
-    function setMagnet(el) {
-      const r = el.getBoundingClientRect();
-      magX = r.left + r.width / 2;
-      magY = r.top + r.height / 2;
-      magW = r.width; magH = r.height;
-      magStrength = r.width < 90 ? 0.45 : r.width < 180 ? 0.32 : 0.22;
-      magActive = true;
-    }
-    document.querySelectorAll(MAGNET_SEL).forEach(el => {
-      el.addEventListener('mouseenter', () => setMagnet(el));
-      el.addEventListener('mousemove', () => setMagnet(el));
-      el.addEventListener('mouseleave', () => { magActive = false; });
     });
   })();
 
