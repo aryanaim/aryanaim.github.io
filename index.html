@@ -777,11 +777,11 @@
 
   .index-list .ix {
     font-family: var(--mono); font-size: 11px;
-    color: var(--muted);
+    color: var(--ink-soft);
     letter-spacing: 0.12em;
     transition: color .45s ease, letter-spacing .55s cubic-bezier(.16,1,.3,1);
   }
-  .index-list li:hover .ix { color: var(--ink-soft); letter-spacing: 0.18em; }
+  .index-list li:hover .ix { color: var(--ink); letter-spacing: 0.18em; }
   .index-list .ix-title {
     font-family: var(--serif);
     font-weight: 400;
@@ -792,20 +792,20 @@
     transition: transform .65s cubic-bezier(.16,1,.3,1), color .45s ease;
     will-change: transform;
   }
-  .index-list .ix-title .it { font-style: italic; color: var(--ink-soft); transition: color .45s ease; }
+  .index-list .ix-title .it { font-style: italic; color: var(--ink); transition: color .45s ease; }
   .index-list li:hover .ix-title { transform: translateX(10px); }
   .index-list li:hover .ix-title .it { color: var(--ink); }
 
   .index-list .ix-tags {
     font-family: var(--mono); font-size: 10px;
-    color: var(--ink-soft);
+    color: var(--ink);
     text-transform: uppercase; letter-spacing: 0.14em;
     transition: color .45s ease, transform .65s cubic-bezier(.16,1,.3,1);
   }
   .index-list li:hover .ix-tags { color: var(--ink); transform: translateX(4px); }
   .index-list .ix-year {
     font-family: var(--mono); font-size: 11px;
-    color: var(--ink-soft);
+    color: var(--ink);
     text-transform: uppercase; letter-spacing: 0.12em;
     display: flex;
     justify-content: flex-end;
@@ -818,15 +818,15 @@
   .index-list .ix-venue::after {
     content: "·";
     margin-left: 8px;
-    color: var(--muted);
+    color: var(--ink-soft);
     transition: color .45s ease;
   }
-  .index-list li:hover .ix-venue::after { color: var(--ink-soft); }
-  .index-list .ix-date { color: var(--muted); transition: color .45s ease; }
-  .index-list li:hover .ix-date { color: var(--ink-soft); }
+  .index-list li:hover .ix-venue::after { color: var(--ink); }
+  .index-list .ix-date { color: var(--ink-soft); transition: color .45s ease; }
+  .index-list li:hover .ix-date { color: var(--ink); }
   .index-list .ix-arrow {
     font-family: var(--mono); font-size: 14px;
-    color: var(--ink-soft);
+    color: var(--ink);
     transition: transform .6s cubic-bezier(.16,1,.3,1), color .35s ease, opacity .35s ease;
     text-align: right;
   }
@@ -960,7 +960,7 @@
     margin-top: 24px;
     margin-bottom: 32px;
   }
-  .about-text h3 .it { font-style: italic; color: var(--ink-soft); }
+  .about-text h3 .it { font-style: italic; color: var(--ink); }
   .about-text .quote {
     font-family: var(--serif);
     font-style: italic;
@@ -1219,9 +1219,8 @@
   }
   .about-side ul li a:hover { color: var(--ink); }
 
-  /* ── stack hover: only the hovered link illuminates; every other link
-        in the same row stays dim, with just a small ambient halo bleeding
-        onto its immediate neighbors. ── */
+  /* ── stack hover: only the hovered link brightens; siblings stay dim.
+        no glow / text-shadow on any stack link. ── */
   .about-side ul li span:has(a:hover) a {
     opacity: 0.28;
     color: var(--ink-soft);
@@ -1230,23 +1229,11 @@
     opacity: 1 !important;
     color: var(--ink);
     animation: none;
-    text-shadow:
-      0 0 14px rgba(255,255,255,0.95),
-      0 0 30px rgba(255,255,255,0.55),
-      0 0 56px rgba(255,255,255,0.24),
-      0 0 96px rgba(255,255,255,0.10) !important;
+    text-shadow: none !important;
   }
-  /* immediate neighbors — small ambient halo only, stay dim */
-  .about-side ul li span a:hover + a,
-  .about-side ul li span a:has(+ a:hover) {
-    text-shadow:
-      0 0 6px rgba(255,255,255,0.22),
-      0 0 14px rgba(255,255,255,0.08);
-  }
-  /* two-away — barely there */
-  .about-side ul li span a:hover + a + a,
-  .about-side ul li span a:has(+ a + a:hover) {
-    text-shadow: 0 0 3px rgba(255,255,255,0.10);
+  .about-side ul li a,
+  .about-side ul li a:hover {
+    text-shadow: none;
   }
 
   /* ─── CONTACT ─── */
@@ -1270,7 +1257,7 @@
     margin-top: 40px;
     max-width: 560px;
     font-family: var(--mono); font-size: 11px;
-    color: var(--ink-dim);
+    color: var(--muted);
     text-transform: uppercase; letter-spacing: 0.14em;
     line-height: 1.6;
   }
@@ -1678,7 +1665,7 @@
       come say <span class="it"><a href="mailto:aryan123mondalus@gmail.com">hi</a></span>
     </h2>
     <p class="contact-note">
-      inbox open · usually reply within a day · IST
+      inbox open · usually reply within a day · Kolkata, IST
     </p>
     <div class="contact-grid">
       <div class="contact-cell">
@@ -2936,7 +2923,7 @@
     const lightTargets = [
       '#manifesto-body',
       '.projects-head h2', '.projects-lede',
-      '.contact h2', '.contact-note'
+      '.contact h2'
     ];
     // one ScrollTrigger per element (not per word) — dramatically fewer tweens
     // running each frame, keeping the main thread free for high-refresh marquee
