@@ -333,9 +333,6 @@
     transform: translate3d(0, 16px, 0) scale(0.96);
     filter: blur(4px);
   }
-  /* lift the HUD up when the copyright strip enters view so it doesn't
-     overlap. Pure transform shift — the .85s transition makes the lift
-     glide rather than snap. */
   .score-hud.at-end {
     transform: translate3d(0, -60px, 0) scale(1);
   }
@@ -1334,8 +1331,6 @@
     font-style: normal;
   }
 
-
-  /* page-end credit strip — high contrast, sits below the main vignette */
   .end-credit {
     position: relative;
     z-index: 250;
@@ -1556,9 +1551,9 @@
       </a>
     </li>
     <li>
-      <a href="#" data-idx="0">
+      <a href="nids.html" data-idx="0">
         <span class="ix">N° 03</span>
-        <span class="ix-title">Hybrid <span class="it">DNN-GNN</span> intrusion detection <span class="ix-mark">patent filed</span></span>
+        <span class="ix-title">Hybrid <span class="it">DNN-GNN</span> intrusion detection</span>
         <span class="ix-tags">network security · deep learning</span>
         <span class="ix-year"><span class="ix-venue">ICNWC</span><span class="ix-date">2026</span></span>
         <span class="ix-arrow">→</span>
@@ -2247,8 +2242,7 @@
     window.addEventListener('touchmove', maybeHide, { passive: true });
   })();
 
-  /* ── score HUD: lift up when the copyright strip enters view so it
-       doesn't sit on top of the © line. ── */
+  /* ── score HUD: float above the copyright strip near the page end ── */
   (function scoreHudEndLift() {
     const hud = document.getElementById('score-hud');
     const credit = document.querySelector('.end-credit');
@@ -2258,7 +2252,6 @@
     }, { threshold: 0 });
     io.observe(credit);
   })();
-
 
   /* ── about portrait: opsec easter egg ── */
   (function aboutPortraitEgg() {
