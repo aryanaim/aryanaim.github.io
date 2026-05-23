@@ -271,6 +271,8 @@
   }
   .score-hud.on { opacity: 1; transform: translateY(0); }
   .score-hud.scrolling { opacity: 0; transform: translateY(14px); }
+  .score-hud.at-end { transform: translateY(-60px); }
+  .score-hud.on.at-end { transform: translateY(-60px); }
   .score-hud.hit .score-num {
     transform: scale(1.18);
     text-shadow: 0 0 28px rgba(255,255,255,0.55);
@@ -671,7 +673,6 @@
     border-color: var(--rule-2);
   }
 
-  /* page-end credit strip — high contrast, sits below the main vignette */
   .end-credit {
     position: relative;
     z-index: 250;
@@ -815,7 +816,7 @@
 <main>
 
   <section class="paper-hero" id="top">
-    <div class="section-label">case file · 02 / icetce 2025</div>
+    <div class="section-label">case file · 04 / icetce 2025</div>
     <h1>
       <span class="it">Quantum Key Distribution</span><br />
       for SCADA in Power Grids
@@ -873,17 +874,14 @@
           <li class="me">
             <span class="name">Aryan Mondal</span>
             <span class="affil">Dept. of Networking and Communications · SRM Institute of Science and Technology · Kattankulathur, India</span>
-            <span class="email">am8847@srmist.edu.in</span>
           </li>
           <li>
             <span class="name">Annapurani Panaiyappan K</span>
             <span class="affil">Dept. of Networking and Communications · SRM Institute of Science and Technology · Kattankulathur, India</span>
-            <span class="email">annapook@srmist.edu.in</span>
           </li>
           <li>
             <span class="name">Abhradeep Basak</span>
             <span class="affil">Dept. of Networking and Communications · SRM Institute of Science and Technology · Kattankulathur, India</span>
-            <span class="email">ab6446@srmist.edu.in</span>
           </li>
         </ul>
       </div>
@@ -961,9 +959,7 @@
 
 </main>
 
-
-<div class="end-credit">aryanmondal — © 2026 — built with restraint</div>
-
+<div class="end-credit">© 2026 aryan mondal</div>
 
 <!-- THREE.JS BACKGROUND -->
 <script type="module">
@@ -1462,6 +1458,17 @@
     window.addEventListener('scroll', () => {
       hud.classList.add('scrolling');
     }, { passive: true });
+  })();
+
+  /* ── score HUD: float above the copyright strip near the page end ── */
+  (function scoreHudEndLift() {
+    const hud = document.getElementById('score-hud');
+    const credit = document.querySelector('.end-credit');
+    if (!hud || !credit || !('IntersectionObserver' in window)) return;
+    const io = new IntersectionObserver((entries) => {
+      hud.classList.toggle('at-end', entries[0].isIntersecting);
+    }, { threshold: 0 });
+    io.observe(credit);
   })();
 
   /* ── Lenis: smooth scrolling ── */
