@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" style="background:#000">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>html,body{background:#000}::view-transition-group(root){background:#000}</style>
+<title>Work in Progress — Aryan Mondal</title>
+<meta name="description" content="This page is under construction. Check back soon." />
+<meta name="theme-color" content="#000000" />
+<link rel="icon" id="favicon" type="image/png" />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+<meta name="color-scheme" content="dark" />
+<meta name="view-transition" content="same-origin" />
+<meta name="format-detection" content="telephone=no" />
+<meta property="og:title" content="Work in Progress — Aryan Mondal" />
+<meta property="og:description" content="This page is under construction. Check back soon." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://aryanaim.me/wip.html" />
+<meta property="og:image" content="https://aryanaim.me/og-image.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="canonical" href="https://aryanaim.me/wip.html" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #000; --ink: #fff; --ink-soft: #9a9a9a; --ink-dim: #7a7a7a;
+    --rule: rgba(255,255,255,0.10);
+    --font: 'Inter',-apple-system,sans-serif;
+    --font-mono: 'JetBrains Mono','IBM Plex Mono',monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html,body { height: 100%; background: var(--bg); }
+  body {
+    color: var(--ink); font-family: var(--font); font-weight: 400;
+    font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+  .grid-bg {
+    position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.14) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    animation: gridBreathe 8s ease-in-out infinite;
+  }
+  @keyframes gridBreathe { 0%,100%{opacity:.7} 50%{opacity:1} }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 200;
+    opacity: .5; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  body::after {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,.55) 75%, rgba(0,0,0,1) 100%);
+    animation: vignette 14s ease-in-out infinite;
+  }
+  @keyframes vignette { 0%,100%{opacity:.7} 50%{opacity:1} }
+  nav {
+    position: relative; z-index: 10;
+    display: flex; align-items: center;
+    padding: 24px 48px; font-size: 13px;
+  }
+  nav .logo { color: var(--ink); text-decoration: none; font-family: var(--font-mono); font-size: 13px; opacity: .7; transition: opacity .2s; }
+  nav .logo:hover { opacity: 1; }
+  nav ul { list-style: none; display: flex; gap: 32px; margin-left: auto; }
+  nav ul li a { color: var(--ink-soft); text-decoration: none; transition: color .2s; }
+  nav ul li a:hover { color: var(--ink); }
+  main {
+    position: relative; z-index: 5; flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    padding: 48px;
+  }
+  .wip { text-align: center; max-width: 480px; }
+  .wip-code { font-family: var(--font-mono); font-size: 13px; color: var(--ink-dim); margin-bottom: 24px; }
+  .wip-code span { color: var(--ink-soft); }
+  .wip h1 { font-size: clamp(28px,6vw,44px); font-weight: 400; letter-spacing: -.02em; line-height: 1.15; margin-bottom: 20px; }
+  .wip p { color: var(--ink-soft); font-size: 15px; line-height: 1.6; margin-bottom: 40px; }
+  .wip a {
+    color: var(--ink); text-decoration: none; font-family: var(--font-mono); font-size: 13px;
+    border: 1px solid var(--rule); padding: 10px 24px; border-radius: 6px;
+    transition: border-color .25s, background .25s; display: inline-block;
+  }
+  .wip a:hover { border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.04); }
+  @media (max-width: 640px) { nav { padding: 20px 24px; } nav ul { gap: 20px; } main { padding: 32px 24px; } }
+
+  /* --- View Transitions API --- */
+  ::view-transition {
+    background: #000;
+  }
+  ::view-transition-group(root) {
+    background: #000;
+  }
+  ::view-transition-image-pair(root) {
+    background: #000;
+    isolation: isolate;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    mix-blend-mode: normal;
+  }
+
+  @view-transition { navigation: auto; }
+  ::view-transition-old(root) {
+    animation: 0.35s ease-out both vt-fade-out;
+  }
+  ::view-transition-new(root) {
+    animation: 0.45s ease-out 0.08s both vt-fade-in;
+  }
+  @keyframes vt-fade-out {
+    to { opacity: 0; transform: scale(0.96); }
+  }
+  @keyframes vt-fade-in {
+    from { opacity: 0; transform: scale(1.04); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav>
+  <a href="index.html" class="logo">Aryan Mondal</a>
+  <ul>
+    <li><a href="index.html#work">work</a></li>
+    <li><a href="index.html#about">about</a></li>
+    <li><a href="index.html#contact">contact</a></li>
+    <li><a href="resume.pdf" target="_blank" rel="noopener">resume ↗</a></li>
+    <li><a href="https://scholar.google.com/citations?user=Si4um1MAAAAJ" target="_blank" rel="noopener">scholar ↗</a></li>
+  </ul>
+</nav>
+<main>
+  <div class="wip">
+    <div class="wip-code"><span>$</span> echo "under construction"</div>
+    <h1>This page isn't ready yet.</h1>
+    <p>Full text, figures, and citations will land here once the paper is published.</p>
+    <a href="index.html">← back to portfolio</a>
+  </div>
+</main>
+<script>
+(function typographyFavicon(){const f=document.getElementById('favicon');if(!f)return;const c=document.createElement('canvas');c.width=64;c.height=64;const x=c.getContext('2d');let t=0,p=false;function r(){x.clearRect(0,0,64,64);x.fillStyle='#000';x.beginPath();const n=12;x.moveTo(n,0);x.lineTo(64-n,0);x.quadraticCurveTo(64,0,64,n);x.lineTo(64,64-n);x.quadraticCurveTo(64,64,64-n,64);x.lineTo(n,64);x.quadraticCurveTo(0,64,0,64-n);x.lineTo(0,n);x.quadraticCurveTo(0,0,n,0);x.closePath();x.fill();x.fillStyle='#fff';x.font='italic 500 32px Georgia,"Times New Roman",serif';x.textAlign='center';x.textBaseline='middle';x.fillText('a',32,34);x.save();x.translate(32,32);x.rotate(t*.06);x.strokeStyle='#fff';x.globalAlpha=.55;x.lineWidth=1.5;x.setLineDash([3,4]);x.beginPath();x.arc(0,0,26,0,Math.PI*2);x.stroke();x.restore();const a=t*.09;x.globalAlpha=1;x.fillStyle='#fff';x.beginPath();x.arc(32+Math.cos(a)*26,32+Math.sin(a)*26,2.2,0,Math.PI*2);x.fill();f.href=c.toDataURL('image/png');t++;if(t<1800&&!p)requestAnimationFrame(r)}r();document.addEventListener('visibilitychange',()=>{if(document.hidden)p=true;else{p=false;if(t<1800)r()}})})();
+</script>
+</body>
+</html>
