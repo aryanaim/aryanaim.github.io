@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background:#000">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>html,body{background:#000}::view-transition-group(root){background:#000}</style>
 <title>Lightweight Hybrid DNN-GNN NIDS</title>
 <meta name="description" content="Lightweight hybrid DNN-GNN architecture for network intrusion detection with adaptive late fusion. ICNWC 2026." />
 <meta name="theme-color" content="#000000" />
@@ -10,7 +11,16 @@
 
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <meta name="color-scheme" content="dark" />
+<meta name="view-transition" content="same-origin" />
 <meta name="format-detection" content="telephone=no" />
+
+<!-- Open Graph / social previews -->
+<meta property="og:title" content="Lightweight Hybrid DNN-GNN NIDS" />
+<meta property="og:description" content="Lightweight hybrid DNN-GNN architecture for network intrusion detection with adaptive late fusion. ICNWC 2026." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://aryanaim.me/nids.html" />
+<meta property="og:image" content="https://aryanaim.me/og-image.png" />
+<meta name="twitter:card" content="summary_large_image" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -213,11 +223,44 @@
 
   /* scroll-reveal initial state */
   .reveal { opacity: 0; transform: translateY(28px); will-change: transform, opacity; }
-  html { scroll-behavior: smooth; }
+  /* scroll-behavior is handled by Lenis */
+
+  /* ─── View Transitions API ─── */
+  ::view-transition {
+    background: #000;
+  }
+  ::view-transition-group(root) {
+    background: #000;
+  }
+  ::view-transition-image-pair(root) {
+    background: #000;
+    isolation: isolate;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    mix-blend-mode: normal;
+  }
+
+  @view-transition { navigation: auto; }
+  ::view-transition-old(root) {
+    animation: 0.35s ease-out both vt-fade-out;
+  }
+  ::view-transition-new(root) {
+    animation: 0.45s ease-out 0.08s both vt-fade-in;
+  }
+  @keyframes vt-fade-out {
+    to { opacity: 0; transform: scale(0.96); }
+  }
+  @keyframes vt-fade-in {
+    from { opacity: 0; transform: scale(1.04); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .reveal { opacity: 1; transform: none; }
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    ::view-transition-old(root),
+    ::view-transition-new(root) { animation: none; }
   }
 
   /* shared chrome */
@@ -762,46 +805,24 @@
     .paper-body { padding: 40px 24px; }
   }
 
-  /* ─── LOADER ─── */
-  .loader {
-    position: fixed; inset: 0; z-index: 500;
-    background: #000;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    transition: opacity .8s ease, visibility .8s;
-  }
-  .loader.gone { opacity: 0; visibility: hidden; }
-  .loader-bar-wrap {
-    width: min(420px, 70vw);
-    height: 1px;
-    background: rgba(255,255,255,0.08);
-    overflow: hidden;
-  }
-  .loader-bar {
-    width: 0%; height: 100%;
-    background: var(--ink);
-    transition: width .15s linear;
-  }
-  .loader-msg {
-    margin-top: 22px;
-    font-family: var(--font-replica-regular);
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--ink-soft);
-    text-transform: uppercase;
-    letter-spacing: -0.014em;
-    transition: opacity .25s ease;
-  }
 </style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ScholarlyArticle",
+  "name": "Lightweight Hybrid DNN-GNN NIDS",
+  "description": "Lightweight hybrid DNN-GNN architecture for network intrusion detection with adaptive late fusion. ICNWC 2026.",
+  "author": {
+    "@type": "Person",
+    "name": "Aryan Mondal"
+  },
+  "url": "https://aryanaim.me/nids.html"
+}
+</script>
 
 </head>
 <body>
-
-<!-- LOADER -->
-<div class="loader" id="loader">
-  <div class="loader-bar-wrap"><div class="loader-bar" id="ld-bar"></div></div>
-  <div class="loader-msg" id="ld-msg">(PRETENDING TO LOAD)</div>
-</div>
 
 <div class="grid-bg"></div>
 <canvas id="webgl"></canvas>
@@ -1049,7 +1070,7 @@
 
     const viewport = window.innerHeight;
     const camZ = 14 + Math.min(scrollY / viewport, 2) * 6;
-    camera.position.z += (camZ - camera.position.z) * 0.06;
+    camera.position.z += (camZ - camera.position.z) * 0.10;
 
     renderer.render(scene, camera);
     requestAnimationFrame(animate);
@@ -1059,44 +1080,6 @@
 
 <!-- INTERACTIONS -->
 <script>
-  /* ── LOADER ── */
-  (function loader() {
-    const ld = document.getElementById('loader');
-    const bar = document.getElementById('ld-bar');
-    const msg = document.getElementById('ld-msg');
-    if (!ld || !bar || !msg) return;
-    const messages = [
-      '(PRETENDING TO LOAD)',
-      '(ASKING THE GPU NICELY)',
-      '(WOW THIS STUFF IS HEAVY)',
-      '(LOADING THE LOADING SCREEN)',
-      '(ALMOST THERE, PROBABLY)'
-    ];
-    const TOTAL_MS = 2000;
-    const startedAt = performance.now();
-    function setMsg(text) {
-      if (msg.textContent === text) return;
-      msg.style.opacity = '0';
-      setTimeout(() => { msg.textContent = text; msg.style.opacity = '1'; }, 140);
-    }
-    function finish() {
-      ld.classList.add('gone');
-      document.body.dispatchEvent(new CustomEvent('intro:done'));
-    }
-    function step(now) {
-      const elapsed = now - startedAt;
-      const progress = Math.min(100, (elapsed / TOTAL_MS) * 100);
-      bar.style.width = progress + '%';
-      const idx = Math.min(messages.length - 1, Math.floor((progress / 100) * messages.length));
-      setMsg(messages[idx]);
-      if (progress < 100) requestAnimationFrame(step);
-      else finish();
-    }
-    // hard ceiling — never block content past ~2.2s even if RAF stalls
-    setTimeout(() => { if (!ld.classList.contains('gone')) finish(); }, 2200);
-    requestAnimationFrame(step);
-  })();
-
   /* ── custom cursor ── */
   let cursor;
   (function setupCursor() {
@@ -1238,7 +1221,7 @@
       lenis = new Lenis({
         duration: 1.7,
         easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -12 * t)),
-        lerp: 0.075,
+        lerp: 0.04,
         smoothWheel: true,
         syncTouch: true,
         syncTouchLerp: 0.07,
@@ -1308,7 +1291,7 @@
             trigger: el,
             start: 'top 88%',
             end: 'top 38%',
-            scrub: 1.4,
+            scrub: 0.6,
           }
         }
       );
