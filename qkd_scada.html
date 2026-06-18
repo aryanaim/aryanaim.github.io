@@ -213,11 +213,6 @@
   }
 
   /* high-refresh smoothing hints (active when Lenis is engaged) */
-  html.lenis-smooth section,
-  html.lenis-smooth footer {
-    transform: translateZ(0);
-    backface-visibility: hidden;
-  }
   html.lenis { scroll-behavior: auto; }
   html.lenis body { overscroll-behavior: none; }
 
@@ -276,7 +271,7 @@
     content: ''; position: fixed; inset: 0;
     pointer-events: none; z-index: 200;
     opacity: 0.5; mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-image: var(--grain, url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"));
   }
   body::after {
     content: ''; position: fixed; inset: 0;
@@ -302,8 +297,8 @@
     border: 1px solid var(--rule-2);
     border-radius: 16px;
     background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(4px) saturate(140%);
+    -webkit-backdrop-filter: blur(4px) saturate(140%);
     pointer-events: none;
     opacity: 0;
     transform: translateY(14px);
@@ -373,8 +368,8 @@
     border: 1px solid var(--rule-2);
     border-radius: 999px;
     background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(4px) saturate(140%);
+    -webkit-backdrop-filter: blur(4px) saturate(140%);
     color: var(--ink);
     font-family: var(--font-replica-regular);
     font-size: 11px;
@@ -415,8 +410,8 @@
     font-weight: 400;
     letter-spacing: -0.014em;
     background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 60%, transparent 100%);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
   }
   nav .logo {
     font-family: var(--font-replica-regular); font-weight: 400; font-size: 14px;
@@ -807,6 +802,23 @@
 
 </style>
 
+<script>
+(function() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 256;
+  const ctx = c.getContext('2d');
+  const imageData = ctx.createImageData(256, 256);
+  const d = imageData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const v = Math.random() * 255;
+    d[i] = d[i+1] = d[i+2] = v;
+    d[i+3] = 36;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  document.documentElement.style.setProperty('--grain', 'url("' + c.toDataURL() + '")');
+})();
+</script>
+
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -1065,8 +1077,8 @@
     field.rotation.x = -t * 0.015;
 
     const viewport = window.innerHeight;
-    const camZ = 14 + Math.min(scrollY / viewport, 2) * 6;
-    camera.position.z += (camZ - camera.position.z) * 0.10;
+    const currentScroll = window.lenis?.scroll ?? scrollY;
+    camera.position.z = 14 + Math.min(currentScroll / viewport, 2) * 6;
 
     renderer.render(scene, camera);
     requestAnimationFrame(animate);
@@ -1087,14 +1099,16 @@
     cursor.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`;
     document.body.classList.add('custom-cursor');
     window.addEventListener('mousemove', (e) => { tx = e.clientX; ty = e.clientY; });
-    function loop() {
-      // critically-damped smoothing — silky trail, no magnetic snap.
+    function updateCursor() {
       cx += (tx - cx) * 0.16;
       cy += (ty - cy) * 0.16;
       cursor.style.transform = `translate3d(${cx}px, ${cy}px, 0) translate(-50%, -50%)`;
-      requestAnimationFrame(loop);
     }
-    loop();
+    if (window.gsap) {
+      gsap.ticker.add(updateCursor);
+    } else {
+      (function raf() { updateCursor(); requestAnimationFrame(raf); })();
+    }
     document.querySelectorAll('a, button').forEach(el => {
       el.addEventListener('mouseenter', () => cursor.classList.add('hover'));
       el.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
@@ -1217,7 +1231,7 @@
       lenis = new Lenis({
         duration: 1.7,
         easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -12 * t)),
-        lerp: 0.04,
+        lerp: 0.10,
         smoothWheel: true,
         syncTouch: true,
         syncTouchLerp: 0.07,
@@ -1265,7 +1279,6 @@
         gsap.registerPlugin(ScrollTrigger);
         lenis.on('scroll', ScrollTrigger.update);
         gsap.ticker.add((time) => lenis.raf(time * 1000));
-        gsap.ticker.lagSmoothing(0);
       } else {
         function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
         requestAnimationFrame(raf);
