@@ -1,16 +1,34 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background:#000">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>html,body{background:#000}::view-transition-group(root){background:#000}</style>
 <title>Aryan Mondal</title>
 <meta name="description" content="security researcher. intrusion detection, applied cryptography, and quantum security on hardware with limited headroom." />
 <meta name="theme-color" content="#000000" />
 <link rel="icon" id="favicon" type="image/png" />
+<link rel="prefetch" href="nids.html" as="document" />
+<link rel="prefetch" href="qkd_scada.html" as="document" />
 
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <meta name="color-scheme" content="dark" />
+<meta name="view-transition" content="same-origin" />
 <meta name="format-detection" content="telephone=no" />
+
+<!-- Open Graph / social previews -->
+<meta property="og:title" content="Aryan Mondal — Security Researcher" />
+<meta property="og:description" content="Network intrusion detection, applied cryptography, and quantum security on constrained hardware." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://aryanaim.me" />
+<meta property="og:image" content="https://aryanaim.me/og-image.png" />
+<meta property="og:locale" content="en_US" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Aryan Mondal — Security Researcher" />
+<meta name="twitter:description" content="Network intrusion detection, applied cryptography, and quantum security on constrained hardware." />
+
+<!-- Canonical -->
+<link rel="canonical" href="https://aryanaim.me" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -159,37 +177,6 @@
     width: 100vw; height: 100vh;
     z-index: 0;
     pointer-events: none;
-  }
-
-  /* ─── LOADER ─── */
-  .loader {
-    position: fixed; inset: 0; z-index: 500;
-    background: #000;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    transition: opacity .8s ease, visibility .8s;
-  }
-  .loader.gone { opacity: 0; visibility: hidden; }
-  .loader-bar-wrap {
-    width: min(420px, 70vw);
-    height: 1px;
-    background: rgba(255,255,255,0.08);
-    overflow: hidden;
-  }
-  .loader-bar {
-    width: 0%; height: 100%;
-    background: var(--ink);
-    transition: width .15s linear;
-  }
-  .loader-msg {
-    margin-top: 22px;
-    font-family: var(--font-replica-regular);
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--ink-soft);
-    text-transform: uppercase;
-    letter-spacing: -0.014em;
-    transition: opacity .25s ease;
   }
 
   /* ─── cursor ─── */
@@ -867,8 +854,8 @@
     opacity: 0;
     transform: translate3d(-50%, -50%, 0) scale(0.9);
     transition:
-      opacity .75s cubic-bezier(.22,.61,.36,1),
-      transform .95s cubic-bezier(.22,.61,.36,1);
+      opacity .35s cubic-bezier(.22,.61,.36,1),
+      transform .45s cubic-bezier(.22,.61,.36,1);
     border: 1px solid var(--rule-2);
     background: var(--bg-2);
     box-shadow: 0 30px 60px rgba(0,0,0,0.6);
@@ -901,9 +888,9 @@
     transform: scale(1.04);
     filter: blur(6px);
     transition:
-      opacity .75s cubic-bezier(.22,.61,.36,1),
-      transform .95s cubic-bezier(.22,.61,.36,1),
-      filter .75s cubic-bezier(.22,.61,.36,1);
+      opacity .35s cubic-bezier(.22,.61,.36,1),
+      transform .45s cubic-bezier(.22,.61,.36,1),
+      filter .35s cubic-bezier(.22,.61,.36,1);
     will-change: transform, opacity, filter;
   }
   .preview-stage > div.show {
@@ -1158,12 +1145,45 @@
   }
 
   .reveal { opacity: 0; transform: translateY(28px); will-change: transform, opacity; }
-  html { scroll-behavior: smooth; }
+  /* scroll-behavior is handled by Lenis */
+
+  /* ─── View Transitions API ─── */
+  ::view-transition {
+    background: #000;
+  }
+  ::view-transition-group(root) {
+    background: #000;
+  }
+  ::view-transition-image-pair(root) {
+    background: #000;
+    isolation: isolate;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    mix-blend-mode: normal;
+  }
+
+  @view-transition { navigation: auto; }
+  ::view-transition-old(root) {
+    animation: 0.35s ease-out both vt-fade-out;
+  }
+  ::view-transition-new(root) {
+    animation: 0.45s ease-out 0.08s both vt-fade-in;
+  }
+  @keyframes vt-fade-out {
+    to { opacity: 0; transform: scale(0.96); }
+  }
+  @keyframes vt-fade-in {
+    from { opacity: 0; transform: scale(1.04); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .reveal { opacity: 1; transform: none; }
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
     .grid-bg { animation: none; opacity: 1; }
+    ::view-transition-old(root),
+    ::view-transition-new(root) { animation: none; }
   }
 
   /* ─── responsive ─── */
@@ -1244,14 +1264,31 @@
   }
 </style>
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Aryan Mondal",
+  "jobTitle": "Security Researcher",
+  "description": "Network intrusion detection, applied cryptography, and quantum security on constrained hardware.",
+  "url": "https://aryanaim.me",
+  "sameAs": [
+    "https://scholar.google.com/citations?user=Si4um1MAAAAJ",
+    "https://www.linkedin.com/in/thearyanmondal/"
+  ],
+  "alumniOf": "SRM Institute of Science and Technology",
+  "knowsAbout": [
+    "Network Intrusion Detection",
+    "Applied Cryptography",
+    "Quantum Key Distribution",
+    "UAV / Edge Security",
+    "Web Exploit Research"
+  ]
+}
+</script>
+
 </head>
 <body>
-
-<!-- LOADER -->
-<div class="loader" id="loader">
-  <div class="loader-bar-wrap"><div class="loader-bar" id="ld-bar"></div></div>
-  <div class="loader-msg" id="ld-msg">(PRETENDING TO LOAD)</div>
-</div>
 
 <div class="grid-bg"></div>
 <canvas id="webgl"></canvas>
@@ -1341,7 +1378,7 @@
   <!-- INDEX LIST view -->
   <ul class="index-list" id="index-list">
     <li>
-      <a href="#" data-idx="2">
+      <a href="wip.html" data-idx="2">
         <span class="ix">1</span>
         <span class="ix-title">SDQN feedback <span class="it">for</span> TF-QKD</span>
         <span class="ix-tags">quantum networks · control systems</span>
@@ -1350,7 +1387,7 @@
       </a>
     </li>
     <li>
-      <a href="#" data-idx="1">
+      <a href="wip.html" data-idx="1">
         <span class="ix">2</span>
         <span class="ix-title">R-HAAP <span class="it">— UAV swarm</span> authentication</span>
         <span class="ix-tags">applied cryptography · embedded systems</span>
@@ -1392,7 +1429,7 @@
 
   <aside class="about-side">
     <div class="about-portrait">
-      <svg viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+      <svg viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" role="img" aria-label="abstract portrait of author">
         <defs>
           <radialGradient id="pg" cx="50%" cy="40%" r="60%">
             <stop offset="0%" stop-color="#ffffff" stop-opacity="0.10" />
@@ -1420,7 +1457,7 @@
     <div class="block">
       <label>Education</label>
       <ul>
-        <li><span><a href="https://www.srmist.edu.in/program/b-tech-cse-with-with-specialization-in-cyber-security/" target="_blank" rel="noopener">B.Tech CSE, SRM Institute of Science and Technology</a></span><span>'22–'26</span></li>
+        <li><span>B.Tech CSE, SRM Institute of Science and Technology</span><span>'22–'26</span></li>
       </ul>
     </div>
     <div class="block">
@@ -1436,11 +1473,11 @@
     <div class="block">
       <label>Stack</label>
       <ul>
-        <li><span><a href="https://www.python.org" target="_blank" rel="noopener">Python</a> · <a href="https://en.cppreference.com/" target="_blank" rel="noopener">C/C++</a> · <a href="https://www.gnu.org/software/bash/" target="_blank" rel="noopener">Bash</a></span><span>core</span></li>
-        <li><span><a href="https://www.tensorflow.org" target="_blank" rel="noopener">TensorFlow</a> · <a href="https://keras.io" target="_blank" rel="noopener">Keras</a></span><span>ml</span></li>
-        <li><span><a href="https://portswigger.net/burp" target="_blank" rel="noopener">Burp</a> · <a href="https://www.zaproxy.org" target="_blank" rel="noopener">ZAP</a> · <a href="https://nmap.org" target="_blank" rel="noopener">Nmap</a></span><span>offsec</span></li>
-        <li><span><a href="https://scapy.net" target="_blank" rel="noopener">Scapy</a> · <a href="https://github.com/KimiNewt/pyshark" target="_blank" rel="noopener">PyShark</a> · <a href="https://www.wireshark.org" target="_blank" rel="noopener">Wireshark</a></span><span>net</span></li>
-        <li><span><a href="https://kafka.apache.org" target="_blank" rel="noopener">Kafka</a> · <a href="https://fastapi.tiangolo.com" target="_blank" rel="noopener">FastAPI</a> · <a href="https://grafana.com" target="_blank" rel="noopener">Grafana</a></span><span>infra</span></li>
+        <li><span>Python · C/C++ · Bash</span><span>core</span></li>
+        <li><span>TensorFlow · Keras</span><span>ml</span></li>
+        <li><span>Burp · ZAP · Nmap</span><span>offsec</span></li>
+        <li><span>Scapy · PyShark · Wireshark</span><span>net</span></li>
+        <li><span>Kafka · FastAPI · Grafana</span><span>infra</span></li>
       </ul>
     </div>
   </aside>
@@ -1845,7 +1882,7 @@
 
     const viewport = window.innerHeight;
     const camZ = 14 + Math.min(scrollY / viewport, 2) * 6;
-    camera.position.z += (camZ - camera.position.z) * 0.09;
+    camera.position.z += (camZ - camera.position.z) * 0.12;
 
     if (!document.body.classList.contains('flat')) renderer.render(scene, camera);
     requestAnimationFrame(animate);
@@ -1904,45 +1941,8 @@
 
 <!-- INTERACTIONS -->
 <script>
-  /* ── LOADER ── */
-  (function loader() {
-    const ld = document.getElementById('loader');
-    const bar = document.getElementById('ld-bar');
-    const msg = document.getElementById('ld-msg');
-    if (!ld || !bar || !msg) return;
-    const messages = [
-      '(PRETENDING TO LOAD)',
-      '(ASKING THE GPU NICELY)',
-      '(WOW THIS STUFF IS HEAVY)',
-      '(LOADING THE LOADING SCREEN)',
-      '(ALMOST THERE, PROBABLY)'
-    ];
-    const TOTAL_MS = 2000;
-    const startedAt = performance.now();
-    function setMsg(text) {
-      if (msg.textContent === text) return;
-      msg.style.opacity = '0';
-      setTimeout(() => { msg.textContent = text; msg.style.opacity = '1'; }, 140);
-    }
-    function finish() {
-      ld.classList.add('gone');
-      document.body.dispatchEvent(new CustomEvent('intro:done'));
-    }
-    function step(now) {
-      const elapsed = now - startedAt;
-      const progress = Math.min(100, (elapsed / TOTAL_MS) * 100);
-      bar.style.width = progress + '%';
-      const idx = Math.min(messages.length - 1, Math.floor((progress / 100) * messages.length));
-      setMsg(messages[idx]);
-      if (progress < 100) requestAnimationFrame(step);
-      else finish();
-    }
-    // hard ceiling — never block content past ~2.2s even if RAF stalls
-    setTimeout(() => { if (!ld.classList.contains('gone')) finish(); }, 2200);
-    requestAnimationFrame(step);
-  })();
-
   /* ── custom cursor ── */
+
   let cursor;
   (function setupCursor() {
     cursor = document.getElementById('cursor');
@@ -2525,7 +2525,7 @@
         duration: 1.7,
         // expo-out curve — fast head, very gentle tail (silkier deceleration)
         easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -12 * t)),
-        lerp: 0.075,
+        lerp: 0.04,
         smoothWheel: true,
         syncTouch: true,
         syncTouchLerp: 0.07,
@@ -2575,6 +2575,10 @@
       window.addEventListener('keydown', () => {
         if (middleAutoscroll) { middleAutoscroll = false; lenis.start(); }
       });
+      // wheel scroll should always restart Lenis
+      window.addEventListener('wheel', () => {
+        if (middleAutoscroll) { middleAutoscroll = false; lenis.start(); }
+      }, { passive: true });
       window.addEventListener('blur', () => {
         if (middleAutoscroll) { middleAutoscroll = false; lenis.start(); }
       });
@@ -2620,7 +2624,7 @@
 
   // scroll reveals — fluid scrub-driven with parallax
   if (window.gsap && window.ScrollTrigger) {
-    gsap.utils.toArray('.projects-head, .about-text, .about-side, .index-list li')
+    gsap.utils.toArray('.about-text, .about-side')
       .forEach((el) => {
         gsap.fromTo(el,
           { y: 70, opacity: 0 },
@@ -2631,11 +2635,27 @@
               trigger: el,
               start: 'top 85%',
               end: 'top 35%',
-              scrub: 1.4,
+              scrub: 0.6,
             }
           }
         );
       });
+
+    // work section — all content appears together as one group
+    gsap.fromTo('.projects .rail-content > *',
+      { y: 70, opacity: 0 },
+      {
+        y: 0, opacity: 1,
+        ease: 'power2.out',
+        stagger: 0.15,
+        scrollTrigger: {
+          trigger: '.projects',
+          start: 'top 75%',
+          end: 'top 25%',
+          scrub: 0.6,
+        }
+      }
+    );
 
     // contact section — all content appears together as one group
     gsap.fromTo('.contact .rail-content > *',
@@ -2648,7 +2668,7 @@
           trigger: '.contact',
           start: 'top 75%',
           end: 'top 25%',
-          scrub: 1.4,
+          scrub: 0.6,
         }
       }
     );
@@ -2790,6 +2810,28 @@
     const s = new Scramble(target);
     s.setText(original);
   });
+
+  // If loaded from a cross-page hash (e.g. nids.html → index.html#work),
+  // skip the hero intro, reveal everything, and smooth-scroll to the section.
+  const hash = window.location.hash;
+  if (hash && hash !== '#') {
+    document.querySelectorAll('.word-line > span').forEach(s => s.style.transform = 'none');
+    document.querySelectorAll('.reveal').forEach(s => { s.style.opacity = 1; s.style.transform = 'none'; });
+    const ac = document.querySelector('.accent-line');
+    if (ac) ac.style.width = '60px';
+    const target = document.querySelector(hash);
+    if (target) {
+      (function scrollToHash() {
+        if (window.lenis) {
+          window.lenis.scrollTo(target, { offset: -20, duration: 1.2 });
+        } else {
+          requestAnimationFrame(scrollToHash);
+        }
+      })();
+    }
+  } else {
+    document.body.dispatchEvent(new CustomEvent('intro:done'));
+  }
 </script>
 
 </body>
