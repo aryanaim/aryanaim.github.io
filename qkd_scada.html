@@ -559,6 +559,28 @@
   }
   .info-grid .cell .v a { color: var(--ink); }
 
+  /* Citation block. The copy control reuses .cta, so the only new surface here
+     is the <pre>: mono, hairline-boxed, and scrolled horizontally rather than
+     wrapped -- BibTeX is line-oriented and soft-wrapping hides its structure. */
+  .bibtex {
+    margin-top: 20px;
+    padding: 22px 24px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--bg-2);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    font-family: var(--font-replica-mono);
+    font-size: 12.5px;
+    line-height: 1.75;
+    letter-spacing: 0.01em;
+    color: var(--ink-soft);
+  }
+  .bibtex code { font: inherit; color: inherit; }
+  @media (max-width: 480px) {
+    .bibtex { padding: 16px 14px; font-size: 11px; }
+  }
+
   /* CTA */
   .cta-row {
     margin-top: 24px;
@@ -847,6 +869,27 @@
         </div>
       </div>
 
+
+      <div class="paper-section" id="cite">
+        <h2>cite this</h2>
+        <p>
+          BibTeX for the IEEE Xplore version of record.
+        </p>
+        <pre class="bibtex"><code>@inproceedings{mondal2025quantum,
+  author    = {Mondal, Aryan and {Annapurani Panaiyappan K} and Basak, Abhradeep},
+  title     = {Quantum Key Distribution for {SCADA} in Power Grids: Security Architectures and Practical Applications},
+  booktitle = {2025 8th International Conference on Emerging Technologies in Computer Engineering: Advances in Computing, Healthcare and Smart Systems (ICETCE)},
+  year      = {2025},
+  month     = nov,
+  pages     = {24--31},
+  publisher = {IEEE},
+  isbn      = {979-8-3315-1542-3},
+  doi       = {10.1109/ICETCE66848.2025.11388178}
+}</code></pre>
+        <div class="cta-row">
+          <button type="button" class="cta ghost copy-bib">copy bibtex</button>
+        </div>
+      </div>
       <div class="paper-section" id="read">
         <h2>read in full</h2>
         <p>
@@ -1112,6 +1155,24 @@
     // refresh once Lenis is fully wired so trigger positions are accurate
     setTimeout(() => ScrollTrigger.refresh(), 80);
   }
+
+  /* -- copy BibTeX -- */
+  document.querySelectorAll('.copy-bib').forEach((btn) => {
+    const block = btn.closest('.paper-section').querySelector('.bibtex');
+    let reset;
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(block.textContent);
+      } catch {
+        // Clipboard unavailable (insecure origin, or permission denied). The
+        // <pre> is still selectable, so don't fake a success state.
+        return;
+      }
+      btn.textContent = 'copied';
+      clearTimeout(reset);
+      reset = setTimeout(() => { btn.textContent = 'copy bibtex'; }, 2000);
+    });
+  });
 </script>
 
 </body>
