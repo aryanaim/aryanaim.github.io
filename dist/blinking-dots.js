@@ -384,10 +384,18 @@
       pointer.ty = event.clientY / Math.max(window.innerHeight, 1);
     };
 
+    // resize() reallocates the backing store and rebuilds the sprite atlas.
+    // Chrome for Android fires resize on every address-bar collapse during a
+    // scroll, so coalesce bursts into a single frame.
+    let resizePending = 0;
     const onResize = () => {
-      resize();
-      lastDraw = 0;
-      draw((performance.now() - start) * 0.001);
+      if (resizePending) return;
+      resizePending = requestAnimationFrame(() => {
+        resizePending = 0;
+        resize();
+        lastDraw = 0;
+        draw((performance.now() - start) * 0.001);
+      });
     };
 
     resize();
@@ -403,6 +411,7 @@
         if (disposed) return;
         disposed = true;
         stopLoop();
+        if (resizePending) cancelAnimationFrame(resizePending);
         window.removeEventListener('resize', onResize);
         window.removeEventListener('pointermove', onPointerMove);
         host.classList.remove('dots-live');

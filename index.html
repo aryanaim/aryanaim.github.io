@@ -34,11 +34,34 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
 
-<!-- Warm the decorative background bundle at low priority: the transfer
-     overlaps font/CSS loading without outbidding it, so the script is already
-     in cache by the time we execute it and the gradient isn't a full network
-     round-trip behind the text. -->
-<link rel="preload" href="dist/shader-background.js" as="script" fetchpriority="low" />
+<!-- The three CDN scripts at the end of <body> are only discovered ~68% into
+     this document; without these, two cold DNS+TCP+TLS handshakes sit on the
+     path to interactivity. -->
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+<link rel="preconnect" href="https://unpkg.com" crossorigin />
+
+<!-- Satoshi is @font-face'd in the inline <style> below, so it isn't requested
+     until the render-blocking Google Fonts sheet above has landed and style
+     resolution reaches an element that needs it. Preloading starts it at parse
+     time instead, which lands it inside swap's block period -- no text reflow.
+     crossorigin is required even same-origin: font fetches are CORS-mode, and
+     without it the preload isn't matched and the file downloads twice. -->
+<link rel="preload" href="fonts/satoshi-regular.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="fonts/satoshi-italic.woff2" as="font" type="font/woff2" crossorigin />
+
+<!-- prefetch, not preload: rel=preload delays the window load event, and the
+     load event is exactly what gates loadShaderBackground() below -- so the
+     low-priority preload was making the background arrive *later*. prefetch is
+     already lowest-priority (no fetchpriority needed) and is excluded from
+     load, while still landing in the HTTP cache for the script tag. -->
+<link rel="prefetch" href="dist/shader-background.js" as="script" />
+
+<!-- The shader bundle fetches its HDR environment maps from this origin, but
+     only after it has finished parsing -- a cold handshake right at the tail of
+     the waterfall. preconnect only: a rel=prefetch here is NOT reused by
+     three.js's loader on the same navigation (prefetch targets the *next* one),
+     so it just downloads the file a second time. Verified in-browser. -->
+<link rel="preconnect" href="https://ruucm.github.io" crossorigin />
 
 <script>
   // Purely decorative background -- execute its bundle only after the page has
@@ -48,6 +71,10 @@
   function loadShaderBackground() {
     const s = document.createElement('script');
     s.src = 'dist/shader-background.js';
+    // keep it low-priority on the cache-miss path too, so it can't outbid
+    // anything that still needs to paint
+    s.async = true;
+    s.fetchPriority = 'low';
     s.onload = revealShaderBackground;
     document.body.appendChild(s);
   }
@@ -223,7 +250,7 @@
     border-radius: 50%;
     pointer-events: none; z-index: 9999;
     transform: translate(-50%, -50%);
-    will-change: width, height, box-shadow, transform;
+    will-change: transform;
     /* Same easing, pulled in from the original .6s without going as tight as
        .28s -- the ring answers the hover instead of trailing it, but still
        blooms open rather than snapping. */
@@ -345,8 +372,6 @@
     z-index: -1;
     pointer-events: none;
     background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 40%, transparent 100%);
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
     mask-image: linear-gradient(180deg, black 0%, black 40%, transparent 100%);
     -webkit-mask-image: linear-gradient(180deg, black 0%, black 40%, transparent 100%);
   }
@@ -365,7 +390,6 @@
       transform .65s cubic-bezier(.16,1,.3,1);
     color: var(--ink-soft);
     display: inline-block;
-    will-change: transform, letter-spacing;
   }
   @keyframes navGlow {
     0%   { text-shadow:
@@ -421,6 +445,9 @@
     position: relative;
     transform: translate(var(--parallax-x, 0), var(--parallax-y, 0));
     transition: transform 0.15s cubic-bezier(.22,.61,.36,1);
+    /* driven by the pointer every frame -- this is the one place on the page
+       where a permanent will-change is actually earned. */
+    will-change: transform;
   }
   .hero-statement::before {
     content: '';
@@ -432,6 +459,9 @@
     pointer-events: none;
     z-index: -1;
     animation: heroGlow 6s ease-in-out infinite alternate;
+    /* rasterize the gradient once and scale it on the GPU, rather than
+       re-rasterizing at each intermediate scale */
+    will-change: transform, opacity;
   }
   @keyframes heroGlow {
     0% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
@@ -652,6 +682,9 @@
     transition: background .55s cubic-bezier(.16,1,.3,1), border-color .55s ease;
     position: relative;
     overflow: hidden;
+    /* the hover animates padding on a grid, which relayouts every frame for
+       600ms; keep that relayout inside the row instead of the whole document. */
+    contain: layout paint;
   }
   .index-list li::before {
     content: "";
@@ -701,7 +734,6 @@
     letter-spacing: -0.02em;
     color: var(--ink);
     transition: transform .65s cubic-bezier(.16,1,.3,1), color .45s ease;
-    will-change: transform;
   }
   .index-list .ix-title .it { font-style: italic; color: var(--ink); transition: color .45s ease; }
   .index-list li:hover .ix-title { transform: translateX(10px); }
@@ -885,13 +917,16 @@
     .end-credit { padding: 14px 20px 18px; font-size: 9.5px; }
   }
 
-  .reveal { opacity: 0; transform: translateY(28px); will-change: transform, opacity; }
+  .reveal { opacity: 0; transform: translateY(28px); }
 
   /* Fluid scroll reveal (see the --sweep driver in the interactions script).
      A single soft-edged mask washes down through the block: 165deg so it tracks
      reading order, and a 70%-wide feather so no part of it ever reads as an
      edge. --sweep defaults to 1, which puts the mask fully open -- so with no
      JS, no GSAP, or reduced motion the text is simply all there. */
+  /* typed so each per-frame write stores a number instead of re-parsing the
+     two calc() expressions in the mask from tokens */
+  @property --sweep { syntax: '<number>'; inherits: false; initial-value: 1; }
   .fluid-reveal {
     --sweep: 1;
     -webkit-mask-image: linear-gradient(165deg,
@@ -1120,7 +1155,7 @@
       </h1>
     </div>
 
-    <div class="reel reveal" aria-hidden="true" data-lenis-prevent>
+    <div class="reel reveal" aria-hidden="true">
       <div class="reel-track">
         <span>intrusion detection</span>
         <span>applied cryptography</span>
@@ -1289,12 +1324,21 @@
   // subtle parallax on hero statement
   const heroStatement = document.querySelector('.hero-statement');
   if (heroStatement) {
+    // mousemove fires several times per displayed frame, and every write here
+    // restarts the 0.15s transform transition on a ~50-node subtree. Coalesce
+    // to one write per frame; amplitude and easing are unchanged.
+    let px = 0, py = 0, queued = false;
     window.addEventListener('mousemove', (e) => {
-      const px = (e.clientX / window.innerWidth - 0.5) * 12;
-      const py = (e.clientY / window.innerHeight - 0.5) * 8;
-      heroStatement.style.setProperty('--parallax-x', px.toFixed(1) + 'px');
-      heroStatement.style.setProperty('--parallax-y', py.toFixed(1) + 'px');
-    });
+      px = (e.clientX / window.innerWidth - 0.5) * 12;
+      py = (e.clientY / window.innerHeight - 0.5) * 8;
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        heroStatement.style.setProperty('--parallax-x', px.toFixed(1) + 'px');
+        heroStatement.style.setProperty('--parallax-y', py.toFixed(1) + 'px');
+      });
+    }, { passive: true });
   }
 </script>
 
@@ -1315,7 +1359,7 @@
     cursor.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`;
     document.body.classList.add('custom-cursor');
 
-    window.addEventListener('mousemove', (e) => { tx = e.clientX; ty = e.clientY; });
+    window.addEventListener('mousemove', (e) => { tx = e.clientX; ty = e.clientY; }, { passive: true });
 
     // Exponential follow, expressed as a rate per *second* so the feel is the
     // same on a 60Hz and a 144Hz panel instead of tracking 2.4x tighter on the
@@ -1325,6 +1369,7 @@
     // ~95ms/~150px float the original 10.5 had.
     const CURSOR_FOLLOW = 18;
     let lastCursor = 0;
+    let settled = false;
     function updateCursor() {
       const now = performance.now();
       const dt = lastCursor ? Math.min((now - lastCursor) * 0.001, 0.05) : 1 / 60;
@@ -1332,6 +1377,12 @@
       const follow = 1 - Math.exp(-CURSOR_FOLLOW * dt);
       cx += (tx - cx) * follow;
       cy += (ty - cy) * follow;
+      // Exponential follow never mathematically arrives, so this wrote a fresh
+      // transform every frame forever. Snap the last 1/100th px, then go quiet.
+      if (Math.abs(tx - cx) < 0.01 && Math.abs(ty - cy) < 0.01) {
+        if (settled) return;
+        settled = true; cx = tx; cy = ty;
+      } else settled = false;
       cursor.style.transform = `translate3d(${cx}px, ${cy}px, 0) translate(-50%, -50%)`;
     }
     if (window.gsap) {
@@ -1405,6 +1456,7 @@
 
     let tick = 0;
     let paused = false;
+    let timer = null;
 
     function render() {
       // black rounded-square bg
@@ -1452,12 +1504,17 @@
 
       favicon.href = canvas.toDataURL('image/png');
       tick++;
-      if (!paused) setTimeout(render, 70);
+      if (!paused) timer = setTimeout(render, 70);
     }
     render();
 
     document.addEventListener('visibilitychange', () => {
+      // Without clearing the pending timer first, returning to the tab before
+      // it fired started a second render chain alongside the old one -- every
+      // alt-tab round trip doubled the number of concurrent PNG encoders.
       paused = document.hidden;
+      clearTimeout(timer);
+      timer = null;
       if (!paused) render();
     });
   })();
@@ -1487,7 +1544,13 @@
 
     function measure() { halfWidth = track.scrollWidth / 2; }
     measure();
-    window.addEventListener('resize', measure);
+    // measure() reads scrollWidth (forced layout); resize fires dozens of times
+    // per second during a window drag, and ResizeObserver re-fires on top of it.
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(measure, 150);
+    }, { passive: true });
     if (window.ResizeObserver) {
       const ro = new ResizeObserver(measure);
       ro.observe(track);
@@ -1495,10 +1558,19 @@
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
     setTimeout(measure, 400);
 
+    // The reel lives in the hero; without this it kept lerping and writing a
+    // transform on every frame of every scroll, long after it left the screen.
+    let onScreen = true;
+    if (window.IntersectionObserver) {
+      new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; },
+        { rootMargin: '200px' }).observe(reel);
+    }
+
     function tick() {
       const now = performance.now();
       const dt = Math.min(now - last, 48);
       last = now;
+      if (!onScreen) return;
       const k = dt / 16;
 
       if (halfWidth <= 0) measure();
@@ -1534,13 +1606,14 @@
     }
 
     reel.addEventListener('wheel', (e) => {
-      const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-      if (Math.abs(dx) > 0) {
-        e.preventDefault();
-        e.stopPropagation();
-        targetX += dx;
-        inertia = inertia * 0.5 + dx * 0.18;
-      }
+      // Only hijack genuinely horizontal gestures. The old ternary fell back to
+      // deltaY, so a plain vertical wheel was preventDefault()ed and fed into
+      // the marquee -- the page could not scroll at all over the reel.
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      targetX += e.deltaX;
+      inertia = inertia * 0.5 + e.deltaX * 0.18;
     }, { passive: false });
 
     reel.addEventListener('pointerdown', (e) => {
@@ -1654,6 +1727,10 @@
       });
       if (window.gsap && window.ScrollTrigger) {
         gsap.registerPlugin(ScrollTrigger);
+        // Without this, any frame over 500ms makes the ticker report 33ms
+        // instead, desyncing the clock we feed to lenis.raf() below -- the
+        // scroll position then snaps to catch up.
+        gsap.ticker.lagSmoothing(0);
         lenis.on('scroll', ScrollTrigger.update);
         gsap.ticker.add((time) => lenis.raf(time * 1000));
       } else {
@@ -1753,6 +1830,10 @@
         gsap.set(chars, { clearProps: 'transform,opacity' });
         gsap.set(lines, { clearProps: 'letterSpacing' });
         heroSettled();
+        // the intro animates letter-spacing on the h1, which changes document
+        // height *after* every ScrollTrigger cached its start/end. Re-measure
+        // once the layout stops moving.
+        if (window.ScrollTrigger) ScrollTrigger.refresh();
       };
       const tl = gsap.timeline({ defaults: { ease: 'expo.out' }, onComplete: land });
       tl.to(chars, { yPercent: 0, opacity: 1, duration: 0.85, stagger: wave }, 0.05)
@@ -1771,6 +1852,29 @@
 
   // scroll reveals — fluid scrub-driven with parallax
   if (window.gsap && window.ScrollTrigger) {
+    /* Dim the shader background over the first viewport of scroll, on top of
+       the CSS veil the sections already paint over it. It settles at
+       SHADER_SCROLLED_OPACITY rather than 0, so the gradient stays present
+       behind the lower sections instead of dropping out to flat black.
+       Driven on the container, not the canvas: the canvas carries its own 1.1s
+       opacity transition for the intro reveal, and scrubbing a property that
+       also has a CSS transition on it smears every step of the scrub. */
+    const SHADER_SCROLLED_OPACITY = 0.7;
+    const shaderRoot = document.getElementById('shader-gradient-root');
+    const heroSection = document.querySelector('.hero');
+    if (shaderRoot && heroSection) {
+      gsap.to(shaderRoot, {
+        opacity: SHADER_SCROLLED_OPACITY,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: heroSection,
+          start: 'top top',
+          end: 'bottom top',
+          scrub: 0.6
+        }
+      });
+    }
+
     gsap.utils.toArray('.about-text, .about-side')
       .forEach((el) => {
         gsap.fromTo(el,
@@ -1831,7 +1935,16 @@
     if (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       gsap.utils.toArray('.fluid-reveal').forEach((el) => {
         const state = { sweep: 0 };
-        const apply = () => el.style.setProperty('--sweep', state.sweep.toFixed(4));
+        // --sweep drives a mask-image, so every write is a full repaint of the
+        // element. scrub:0.6 keeps this ticking for ~0.6s after the wheel
+        // stops, where the value barely moves -- skip those redundant writes.
+        let last = -1;
+        const apply = () => {
+          const v = Math.round(state.sweep * 1000) / 1000;
+          if (v === last) return;
+          last = v;
+          el.style.setProperty('--sweep', v.toFixed(3));
+        };
         apply();
         gsap.to(state, {
           sweep: 1,
@@ -1863,11 +1976,15 @@
     heroSettled();
     const target = document.querySelector(hash);
     if (target) {
+      // if Lenis never loads, this used to poll at 60fps for the life of the page
+      const hashDeadline = performance.now() + 3000;
       (function scrollToHash() {
         if (window.lenis) {
           window.lenis.scrollTo(target, { offset: -20, duration: 1.2 });
-        } else {
+        } else if (performance.now() < hashDeadline) {
           requestAnimationFrame(scrollToHash);
+        } else {
+          target.scrollIntoView();
         }
       })();
     }

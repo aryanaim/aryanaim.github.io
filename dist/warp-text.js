@@ -536,6 +536,7 @@ void main() {
     let box = null;
     let boxDirty = true;
     let lastTime = 0;
+    let lastTrace = 0;
     let rasterVersion = 0;
     let running = false;
     let rafId = 0;
@@ -655,7 +656,14 @@ void main() {
       if (disposed || contextLost) return;
 
       trackPointer();
-      if (live) traceInto(true);
+      // Re-tracing follows the ~1.9s DOM reveal, and each trace is 43 glyph
+      // rect reads interleaved with GSAP's writes to those same spans (forced
+      // layout) plus a multi-MB texImage2D. 30Hz is indistinguishable from
+      // 60Hz on an ease that long, and halves both costs.
+      if (live) {
+        const traceNow = performance.now();
+        if (traceNow - lastTrace >= 32) { lastTrace = traceNow; traceInto(true); }
+      }
 
       const now = performance.now();
       const elapsed = (now - startTime) * 0.001;
@@ -793,9 +801,13 @@ void main() {
       host.classList.remove('is-warped');
     };
 
+    // resize() reallocates the GL backing store and re-traces every glyph, so
+    // coalesce bursts (desktop drag, mobile address-bar collapse) into one frame
+    let resizePending = 0;
     const resizeObserver = new ResizeObserver(() => {
       boxDirty = true;
-      resize();
+      if (resizePending) return;
+      resizePending = requestAnimationFrame(() => { resizePending = 0; resize(); });
     });
     resizeObserver.observe(host);
 
@@ -835,6 +847,7 @@ void main() {
         if (disposed) return;
         disposed = true;
         stopLoop();
+        if (resizePending) cancelAnimationFrame(resizePending);
         resizeObserver.disconnect();
         intersectionObserver.disconnect();
         canvas.removeEventListener('webglcontextlost', onContextLost);

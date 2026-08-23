@@ -22,6 +22,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+<!-- crossorigin is required even same-origin, or the preload isn't matched -->
+<link rel="preload" href="fonts/satoshi-regular.woff2" as="font" type="font/woff2" crossorigin />
 <style>
   /* self-hosted instead of Google Fonts CDN -- avoids a render-blocking
      third-party request for the site's primary display/body font. */
@@ -143,6 +145,7 @@
     from { opacity: 0; transform: scale(1.04); }
   }
   @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
     ::view-transition-old(root),
     ::view-transition-new(root) { animation: none; }
   }
