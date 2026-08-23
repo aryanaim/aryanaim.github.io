@@ -51,6 +51,8 @@
   body {
     color: var(--ink); font-family: var(--font); font-weight: 400;
     font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+    /* iOS Safari inflates type in landscape without this. */
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
     display: flex; flex-direction: column;
   }
   .grid-bg {
@@ -100,6 +102,16 @@
   }
   .wip a:hover { border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.04); }
   @media (max-width: 640px) { nav { padding: 20px 24px; } nav ul { gap: 20px; } main { padding: 32px 24px; } }
+  /* Below this the nav row ran out of width: the logo broke onto two lines and
+     the "cv" / "scholar" labels split with their arrow dropping underneath.
+     Tighten the row and keep each label whole. */
+  @media (max-width: 480px) {
+    nav { padding: 14px 16px; }
+    nav ul { gap: 12px; font-size: 11px; }
+    nav .logo { font-size: 12px; }
+    nav .logo, nav ul li a { white-space: nowrap; }
+    main { padding: 28px 16px; }
+  }
 
   /* --- View Transitions API --- */
   ::view-transition {
@@ -134,6 +146,44 @@
     ::view-transition-old(root),
     ::view-transition-new(root) { animation: none; }
   }
+
+  /* Keyboard-only escape hatch past the nav. Parked off-canvas rather than
+     display:none so it stays in the tab order, and it is the first focusable
+     element in the document. */
+  .skip-link {
+    position: fixed;
+    top: 12px; left: 12px;
+    z-index: 300;
+    padding: 10px 18px;
+    border-radius: 4px;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    transform: translateY(calc(-100% - 24px));
+    transition: transform .18s ease;
+  }
+  .skip-link:focus { transform: translateY(0); }
+  /* The skip target takes focus programmatically; a ring around the whole
+     page reads as breakage, and the scroll jump is the affordance. */
+  main:focus { outline: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .skip-link { transition: none; }
+  }
+
+  /* Touch targets. These labels are 10-13px type, which leaves hit boxes of
+     14-25px on a phone -- below the 24px WCAG 2.5.8 floor in places, and well
+     under the 44px both platform guidelines ask for. Grown with padding, with
+     the inline axis pulled back by an equal negative margin so nothing moves.
+     Vertical padding on an inline box grows the hit area without touching the
+     line box, so the layout is identical. Scoped to coarse pointers, so mouse
+     hover regions are left exactly as they were. */
+  @media (hover: none) and (pointer: coarse) {
+    nav .logo,
+    nav ul li a { padding-block: 15px; padding-inline: 6px; margin-inline: -6px; }
+  }
 </style>
 
 <script>
@@ -154,6 +204,7 @@
 </script>
 </head>
 <body>
+<a class="skip-link" href="#main">skip to content</a>
 <div class="grid-bg"></div>
 <nav>
   <a href="index.html" class="logo">Aryan Mondal</a>
@@ -165,7 +216,7 @@
     <li><a href="https://scholar.google.com/citations?user=Si4um1MAAAAJ" target="_blank" rel="noopener">scholar ↗</a></li>
   </ul>
 </nav>
-<main>
+<main id="main" tabindex="-1">
   <div class="wip">
     <div class="wip-code"><span>$</span> echo "under construction"</div>
     <h1>This page isn't ready yet.</h1>

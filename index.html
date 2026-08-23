@@ -102,7 +102,7 @@
     --ink:      #ffffff;
     --ink-soft: #9a9a9a;
     --ink-dim:  #7a7a7a;
-    --muted:    #6a6a6a;
+    --muted:    #767676;
     --rule:     rgba(255, 255, 255, 0.10);
     --rule-2:   rgba(255, 255, 255, 0.18);
     --font-replica-regular: 'Satoshi', -apple-system, sans-serif;
@@ -120,6 +120,8 @@
     line-height: 1.5;
     letter-spacing: -0.014em;
     -webkit-font-smoothing: antialiased;
+    /* iOS Safari inflates type in landscape without this. */
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
     /* keeps text legible against the shader background, which now shows
        through every section and cycles across the full hue/brightness
        range -- invisible against the solid-black nav/footer, load-bearing
@@ -222,11 +224,14 @@
     pointer-events: none; z-index: 9999;
     transform: translate(-50%, -50%);
     will-change: width, height, box-shadow, transform;
-    transition: width .6s cubic-bezier(.22,.61,.36,1),
-                height .6s cubic-bezier(.22,.61,.36,1),
-                background .5s cubic-bezier(.22,.61,.36,1),
-                border-color .5s cubic-bezier(.22,.61,.36,1),
-                box-shadow .7s cubic-bezier(.22,.61,.36,1);
+    /* Same easing, pulled in from the original .6s without going as tight as
+       .28s -- the ring answers the hover instead of trailing it, but still
+       blooms open rather than snapping. */
+    transition: width .4s cubic-bezier(.22,.61,.36,1),
+                height .4s cubic-bezier(.22,.61,.36,1),
+                background .32s cubic-bezier(.22,.61,.36,1),
+                border-color .32s cubic-bezier(.22,.61,.36,1),
+                box-shadow .46s cubic-bezier(.22,.61,.36,1);
     box-shadow:
       0 0 6px  rgba(255, 255, 255, 0.42),
       0 0 14px rgba(255, 255, 255, 0.22),
@@ -392,10 +397,23 @@
 
   /* ─── HERO ─── */
   .hero {
+    /* 100vh on a phone is the *tall* viewport (address bar collapsed), so the
+       hero overflowed the screen while the bar was showing and the page
+       shifted as it hid. svh is the small viewport, which is the one that is
+       actually on screen; the vh line stays as the fallback. Deliberately not
+       dvh -- that resizes mid-scroll and would thrash the ScrollTriggers. */
     min-height: calc(100vh - 80px);
+    min-height: calc(100svh - 80px);
     padding: 40px 40px 50px;
     display: flex; flex-direction: column; justify-content: space-between;
     position: relative;
+    /* The headline warp canvas is drawn ~35px wider than the viewport on
+       each side, and the reel track runs several thousand px long. Both
+       escaped and gave the page a real horizontal scroll. clip rather than
+       hidden keeps them out of the scroll region without making .hero a
+       scroll container, so the sticky rails and Lenis are untouched -- and
+       the padding box is full-bleed, so nothing on screen is cropped. */
+    overflow-x: clip;
   }
 
   .hero-statement {
@@ -951,8 +969,15 @@
     .contact-grid { grid-template-columns: 1fr 1fr; gap: 28px; }
     body { cursor: auto; }
     .cursor { display: none; }
-    .index-list a { grid-template-columns: 36px 1fr 60px; gap: 14px; padding: 20px 0; }
-    .index-list .ix-tags, .index-list .ix-arrow { display: none; }
+    /* Three columns do not fit here. The tags used to be dropped outright,
+       and the venue/date overflowed its narrow cell to the left and painted
+       itself across the title. Both now take their own row under it. */
+    .index-list a { grid-template-columns: 36px 1fr; gap: 6px 14px; padding: 20px 0; }
+    .index-list .ix       { grid-column: 1; grid-row: 1; }
+    .index-list .ix-title { grid-column: 2; grid-row: 1; }
+    .index-list .ix-tags  { grid-column: 2; grid-row: 2; }
+    .index-list .ix-year  { grid-column: 2; grid-row: 3; justify-content: flex-start; }
+    .index-list .ix-arrow { display: none; }
     .index-list li:hover a { padding-left: 8px; padding-right: 8px; }
   }
 
@@ -961,7 +986,7 @@
     nav { padding: 14px 16px; }
     nav ul { gap: 14px; font-size: 11px; }
     nav .logo { font-size: 13px; }
-    .hero { padding: 24px 16px 36px; min-height: calc(100vh - 60px); }
+    .hero { padding: 24px 16px 36px; min-height: calc(100vh - 60px); min-height: calc(100svh - 60px); }
     .projects, .about, .contact, .manifesto { padding-left: 16px; padding-right: 16px; }
     .manifesto { padding-top: 80px; padding-bottom: 80px; }
     .reel-track { font-size: clamp(18px, 5.5vw, 32px); gap: 28px; }
@@ -971,7 +996,7 @@
     .about-text h3 { font-size: clamp(26px, 7.5vw, 40px); }
     .about-side { font-size: 11px; }
     .contact-grid { grid-template-columns: 1fr; gap: 22px; }
-    .index-list a { grid-template-columns: 28px 1fr 50px; gap: 10px; padding: 16px 0; }
+    .index-list a { grid-template-columns: 28px 1fr; gap: 6px 10px; padding: 16px 0; }
     .index-list .ix { font-size: 10px; }
     .end-credit { padding: 12px 16px 16px; font-size: 9.5px; letter-spacing: 0.14em; }
   }
@@ -981,6 +1006,46 @@
     .hero { min-height: auto; padding: 24px 24px 32px; }
     .hero-statement { margin-top: 18px; }
     .manifesto { padding-top: 60px; padding-bottom: 60px; }
+  }
+
+  /* Keyboard-only escape hatch past the nav. Parked off-canvas rather than
+     display:none so it stays in the tab order, and it is the first focusable
+     element in the document. */
+  .skip-link {
+    position: fixed;
+    top: 12px; left: 12px;
+    z-index: 300;
+    padding: 10px 18px;
+    border-radius: 4px;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--font-replica-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    transform: translateY(calc(-100% - 24px));
+    transition: transform .18s ease;
+  }
+  .skip-link:focus { transform: translateY(0); }
+  /* The skip target takes focus programmatically; a ring around the whole
+     page reads as breakage, and the scroll jump is the affordance. */
+  main:focus { outline: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .skip-link { transition: none; }
+  }
+
+  /* Touch targets. These labels are 10-13px type, which leaves hit boxes of
+     14-25px on a phone -- below the 24px WCAG 2.5.8 floor in places, and well
+     under the 44px both platform guidelines ask for. Grown with padding, with
+     the inline axis pulled back by an equal negative margin so nothing moves.
+     Vertical padding on an inline box grows the hit area without touching the
+     line box, so the layout is identical. Scoped to coarse pointers, so mouse
+     hover regions are left exactly as they were. */
+  @media (hover: none) and (pointer: coarse) {
+    nav .logo,
+    nav ul li a { padding-block: 15px; padding-inline: 6px; margin-inline: -6px; }
+    .contact-cell a { padding-block: 12px; }
+    .hero-foot .scroll-hint { padding-block: 10px; }
   }
 </style>
 
@@ -1026,6 +1091,7 @@
 
 </head>
 <body>
+<a class="skip-link" href="#main">skip to content</a>
 
 <div id="shader-gradient-root"></div>
 <div class="cursor" id="cursor"></div>
@@ -1041,7 +1107,7 @@
   </ul>
 </nav>
 
-<main>
+<main id="main" tabindex="-1">
 
 <!-- HERO -->
 <section class="hero">
@@ -1251,11 +1317,13 @@
 
     window.addEventListener('mousemove', (e) => { tx = e.clientX; ty = e.clientY; });
 
-    // 1 - e^(-10.5/60) == 0.16, so this reproduces the old feel exactly at 60Hz
-    // while making it identical on every other refresh rate. The fixed 0.16 per
-    // *frame* it replaces made the cursor track 2.4x tighter on a 144Hz panel
-    // than on a 60Hz one -- how closely it followed depended on the display.
-    const CURSOR_FOLLOW = 10.5;
+    // Exponential follow, expressed as a rate per *second* so the feel is the
+    // same on a 60Hz and a 144Hz panel instead of tracking 2.4x tighter on the
+    // faster one. 1/CURSOR_FOLLOW is the time constant, which is what reads as
+    // lag: at 18 the dot closes on the pointer in ~56ms and trails a 1500px/s
+    // flick by ~85px -- softer than a locked-on 30, still well clear of the
+    // ~95ms/~150px float the original 10.5 had.
+    const CURSOR_FOLLOW = 18;
     let lastCursor = 0;
     function updateCursor() {
       const now = performance.now();
