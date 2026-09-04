@@ -907,7 +907,7 @@
     color: var(--ink-soft);
     letter-spacing: -0.014em;
     -webkit-tap-highlight-color: transparent;
-    transition: color .25s, transform .35s;
+    transition: color .25s ease, transform .35s cubic-bezier(.16,1,.3,1);
     display: inline-flex; align-items: center; gap: 10px;
     /* shrink to text width — without this, the anchor stretches across
        the whole .contact-cell flex column (default align-items: stretch)
@@ -919,7 +919,7 @@
   .contact-cell a::after {
     content: '→';
     font-size: 12px;
-    transition: transform .35s;
+    transition: transform .35s cubic-bezier(.16,1,.3,1);
     color: var(--ink-dim);
   }
   .contact-cell a:hover { color: var(--ink); }
@@ -947,6 +947,11 @@
   }
 
   .reveal { opacity: 0; transform: translateY(28px); }
+
+  /* Scroll pop-in (see the ScrollTrigger loop in the interactions script).
+     Headings get a touch of scale overshoot on top of this same hidden state;
+     the JS branches on tag name rather than a second CSS class. */
+  .pop-in { opacity: 0; transform: translateY(24px); }
 
   /* Fluid scroll reveal (see the --sweep driver in the interactions script).
      A single soft-edged mask washes down through the block: 165deg so it tracks
@@ -1000,6 +1005,7 @@
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .reveal { opacity: 1; transform: none; }
+    .pop-in { opacity: 1; transform: none; }
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
     ::view-transition-old(root),
     ::view-transition-new(root) { animation: none; }
@@ -1088,7 +1094,7 @@
     letter-spacing: 0.08em;
     text-decoration: none;
     transform: translateY(calc(-100% - 24px));
-    transition: transform .18s ease;
+    transition: transform .18s cubic-bezier(.16,1,.3,1);
   }
   .skip-link:focus { transform: translateY(0); }
   /* The skip target takes focus programmatically; a ring around the whole
@@ -1209,7 +1215,7 @@
 <section class="manifesto with-rail">
   <div class="section-label">manifesto</div>
   <div class="rail-content">
-    <p id="manifesto-body" class="fluid-reveal">
+    <p id="manifesto-body" class="fluid-reveal pop-in">
       Most of my work is about getting real security guarantees on hardware that wasn't built for it. A network IDS small enough to run on IoT-class devices. An authentication scheme for UAV swarms that finishes before the radio timeout. QKD control loops for industrial infrastructure. Different environments, same problem: limited compute, real attack surface, and an architecture that has to actually work.
     </p>
   </div>
@@ -1217,47 +1223,56 @@
 
 <!-- PROJECTS -->
 <section class="projects with-rail" id="work">
-  <div class="section-label reveal">work</div>
+  <div class="section-label pop-in">work</div>
   <div class="rail-content">
   <div class="projects-head">
-    <h2 class="reveal fluid-reveal">Selected research<br />&amp; publications</h2>
-    <p class="projects-lede reveal fluid-reveal">
-      four pieces across <span class="it">network intrusion detection</span>, <span class="it">applied cryptography</span>, and <span class="it">quantum security</span>: peer-reviewed venues and working prototypes.
+    <h2 class="fluid-reveal pop-in">Selected research<br />&amp; publications</h2>
+    <p class="projects-lede fluid-reveal pop-in">
+      five pieces across <span class="it">network intrusion detection</span>, <span class="it">applied cryptography</span>, and <span class="it">quantum security</span>: peer-reviewed venues and working prototypes.
     </p>
   </div>
 
   <!-- INDEX LIST view -->
   <ul class="index-list">
-    <li>
+    <li class="pop-in">
       <a href="wip.html">
         <span class="ix">1</span>
+        <span class="ix-title">Satellite <span class="it">quantum pseudonym</span> relay</span>
+        <span class="ix-tags">quantum security · satellite networks</span>
+        <span class="ix-year"><span class="ix-venue">ACM TQC</span><span class="ix-date">under review</span></span>
+        <span class="ix-arrow">→</span>
+      </a>
+    </li>
+    <li class="pop-in">
+      <a href="wip.html">
+        <span class="ix">2</span>
         <span class="ix-title">SDQN feedback <span class="it">for</span> TF-QKD</span>
         <span class="ix-tags">quantum networks · control systems</span>
         <span class="ix-year"><span class="ix-venue">IEEE TQE</span><span class="ix-date">under review</span></span>
         <span class="ix-arrow">→</span>
       </a>
     </li>
-    <li>
+    <li class="pop-in">
       <a href="wip.html">
-        <span class="ix">2</span>
+        <span class="ix">3</span>
         <span class="ix-title">R-HAAP: <span class="it">UAV swarm</span> authentication</span>
         <span class="ix-tags">applied cryptography · embedded systems</span>
         <span class="ix-year"><span class="ix-venue">IEEE CONECCT</span><span class="ix-date">2026</span></span>
         <span class="ix-arrow">→</span>
       </a>
     </li>
-    <li>
+    <li class="pop-in">
       <a href="nids.html">
-        <span class="ix">3</span>
+        <span class="ix">4</span>
         <span class="ix-title">Hybrid <span class="it">DNN-GNN</span> intrusion detection</span>
         <span class="ix-tags">network security · deep learning</span>
         <span class="ix-year"><span class="ix-venue">ICNWC</span><span class="ix-date">2026</span></span>
         <span class="ix-arrow">→</span>
       </a>
     </li>
-    <li>
+    <li class="pop-in">
       <a href="qkd_scada.html">
-        <span class="ix">4</span>
+        <span class="ix">5</span>
         <span class="ix-title">QKD <span class="it">for</span> SCADA in power grids</span>
         <span class="ix-tags">quantum security · cyber-physical systems</span>
         <span class="ix-year"><span class="ix-venue">ICETCE</span><span class="ix-date">2025</span></span>
@@ -1270,22 +1285,22 @@
 
 <!-- ABOUT -->
 <section class="about" id="about">
-  <div class="section-label">about</div>
+  <div class="section-label pop-in">about</div>
   <div class="about-text">
-    <h3>
+    <h3 class="pop-in">
       CS graduate from SRM Institute of Science and Technology, working on network intrusion detection, applied cryptography, and quantum security.
     </h3>
-    <p>I care about systems that hold up under pressure. That often means smaller, not bigger. My research tends toward lightweight architectures that run on constrained hardware: intrusion detection at the edge, authentication protocols for resource-limited devices, and control loops for quantum systems that have to converge in real time. The goal is always finding the minimum viable design that still holds under adversarial conditions.</p>
+    <p class="pop-in">I care about systems that hold up under pressure. That often means smaller, not bigger. My research tends toward lightweight architectures that run on constrained hardware: intrusion detection at the edge, authentication protocols for resource-limited devices, and control loops for quantum systems that have to converge in real time. The goal is always finding the minimum viable design that still holds under adversarial conditions.</p>
   </div>
 
   <aside class="about-side">
-    <div class="block">
+    <div class="block pop-in">
       <label>Education</label>
       <ul>
         <li><span>B.Tech CSE, SRM Institute of Science and Technology</span><span>'22–'26</span></li>
       </ul>
     </div>
-    <div class="block">
+    <div class="block pop-in">
       <label>Focus areas</label>
       <ul>
         <li><span>Network intrusion detection</span><span>›</span></li>
@@ -1295,7 +1310,7 @@
         <li><span>Web exploit research</span><span>›</span></li>
       </ul>
     </div>
-    <div class="block">
+    <div class="block pop-in">
       <label>Stack</label>
       <ul>
         <li><span>Python · C/C++ · Bash</span><span>core</span></li>
@@ -1310,21 +1325,21 @@
 
 <!-- CONTACT -->
 <section class="contact with-rail" id="contact">
-  <div class="section-label">contact</div>
+  <div class="section-label pop-in">contact</div>
   <div class="rail-content">
-    <h2 class="fluid-reveal">
+    <h2 class="fluid-reveal pop-in">
       why don't you<br />
       come say <span class="it"><a href="mailto:aryanmondal@umass.edu">hi</a></span>
     </h2>
-    <p class="contact-note">
+    <p class="contact-note pop-in">
       inbox open · usually reply within a day · IST
     </p>
     <div class="contact-grid">
-      <div class="contact-cell">
+      <div class="contact-cell pop-in">
         <span class="contact-label">01 / email</span>
         <a href="mailto:aryanmondal@umass.edu">aryanmondal@umass.edu</a>
       </div>
-      <div class="contact-cell">
+      <div class="contact-cell pop-in">
         <span class="contact-label">02 / linkedin</span>
         <a href="https://www.linkedin.com/in/thearyanmondal/" target="_blank" rel="noopener">@thearyanmondal</a>
       </div>
@@ -1886,7 +1901,7 @@
   }
   document.body.addEventListener('intro:done', startHeroIntro);
 
-  // scroll reveals — fluid scrub-driven with parallax
+  // shader background scroll dim
   if (window.gsap && window.ScrollTrigger) {
     /* Dim the shader background over the first viewport of scroll, on top of
        the CSS veil the sections already paint over it. It settles at
@@ -1911,94 +1926,27 @@
       });
     }
 
-    gsap.utils.toArray('.about-text, .about-side')
-      .forEach((el) => {
+    // scroll pop-in — headings land with a touch of overshoot, body text and
+    // list/grid rows rise in clean. Each element triggers off its own
+    // position, so stacked content (the index list, about-side blocks)
+    // cascades naturally as it crosses the line, with no manual stagger to
+    // keep in sync with the layout.
+    if (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      gsap.utils.toArray('.pop-in').forEach((el) => {
+        const isHeading = /^H[1-4]$/.test(el.tagName);
         gsap.fromTo(el,
-          { y: 70, opacity: 0 },
+          { y: 24, opacity: 0, scale: isHeading ? 0.95 : 1 },
           {
-            y: 0, opacity: 1,
-            ease: 'power2.out',
+            y: 0, opacity: 1, scale: 1,
+            duration: isHeading ? 0.7 : 0.6,
+            ease: isHeading ? 'back.out(1.5)' : 'power3.out',
             scrollTrigger: {
               trigger: el,
-              start: 'top 85%',
-              end: 'clamp(top 35%)',
-              scrub: 0.6,
+              start: 'top 88%',
+              toggleActions: 'play none none none'
             }
           }
         );
-      });
-
-    // work section — all content appears together as one group
-    gsap.fromTo('.projects .rail-content > *',
-      { y: 70, opacity: 0 },
-      {
-        y: 0, opacity: 1,
-        ease: 'power2.out',
-        stagger: 0.15,
-        scrollTrigger: {
-          trigger: '.projects',
-          start: 'top 75%',
-          end: 'clamp(top 25%)',
-          scrub: 0.6,
-        }
-      }
-    );
-
-    // contact section — all content appears together as one group
-    gsap.fromTo('.contact .rail-content > *',
-      { y: 70, opacity: 0 },
-      {
-        y: 0, opacity: 1,
-        ease: 'power2.out',
-        stagger: 0.15,
-        scrollTrigger: {
-          trigger: '.contact',
-          start: 'top 75%',
-          end: 'clamp(top 25%)',
-          scrub: 0.6,
-        }
-      }
-    );
-
-    /* Fluid reveal on the long text blocks, over the same scroll range the old
-       word-by-word lighting used. One continuous mask edge washes down through
-       the block instead of N words stepping between two greys, so there is
-       nothing to quantise; and because it works on the mask rather than colour
-       or opacity, it neither fights each block's own palette nor compounds with
-       the section reveals above. --sweep is written straight to the element:
-       animating the custom property through GSAP would leave its unit handling
-       to guesswork. */
-    if (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      gsap.utils.toArray('.fluid-reveal').forEach((el) => {
-        const state = { sweep: 0 };
-        // --sweep drives a mask-image, so every write is a full repaint of the
-        // element. scrub:0.6 keeps this ticking for ~0.6s after the wheel
-        // stops, where the value barely moves -- skip those redundant writes.
-        let last = -1;
-        const apply = () => {
-          const v = Math.round(state.sweep * 1000) / 1000;
-          if (v === last) return;
-          last = v;
-          el.style.setProperty('--sweep', v.toFixed(3));
-        };
-        apply();
-        gsap.to(state, {
-          sweep: 1,
-          ease: 'none', // the scroll position *is* the timeline
-          onUpdate: apply,
-          scrollTrigger: {
-            trigger: el,
-            start: 'clamp(top 80%)',
-            /* The sweep spans the block, but a block near the end of the
-               document can never lift its bottom to 40% of the viewport -- the
-               page runs out of scroll first, which would leave the mask half
-               shut for good (the contact heading sat at 0.62 forever). clamp()
-               pulls the end back inside the scrollable range. */
-            end: 'clamp(bottom 40%)',
-            scrub: 0.6,
-            onRefresh: apply // deep-linked past it: seed from wherever it already sits
-          }
-        });
       });
     }
   }
