@@ -66,6 +66,83 @@
     animation: gridBreathe 8s ease-in-out infinite;
   }
   @keyframes gridBreathe { 0%,100%{opacity:.7} 50%{opacity:1} }
+  body.custom-cursor,
+  body.custom-cursor * { cursor: none !important; }
+
+  /* custom cursor */
+  .cursor {
+    position: fixed; top: 0; left: 0;
+    width: 10px; height: 10px;
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 50%;
+    pointer-events: none; z-index: 9999;
+    transform: translate(-50%, -50%);
+    will-change: transform;
+    transition: width .4s cubic-bezier(.22,.61,.36,1),
+                height .4s cubic-bezier(.22,.61,.36,1),
+                background .32s cubic-bezier(.22,.61,.36,1),
+                border-color .32s cubic-bezier(.22,.61,.36,1),
+                box-shadow .46s cubic-bezier(.22,.61,.36,1);
+    box-shadow:
+      0 0 6px  rgba(255, 255, 255, 0.42),
+      0 0 14px rgba(255, 255, 255, 0.22),
+      0 0 28px rgba(255, 255, 255, 0.10),
+      0 0 52px rgba(255, 255, 255, 0.04);
+  }
+  @keyframes cursorBreath {
+    0%, 100% {
+      box-shadow:
+        0 0 10px rgba(255,255,255,0.38),
+        0 0 24px rgba(255,255,255,0.18),
+        0 0 48px rgba(255,255,255,0.08),
+        0 0 88px rgba(255,255,255,0.03);
+      border-color: rgba(255,255,255,0.75);
+    }
+    50% {
+      box-shadow:
+        0 0 16px rgba(255,255,255,0.62),
+        0 0 36px rgba(255,255,255,0.30),
+        0 0 72px rgba(255,255,255,0.14),
+        0 0 120px rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,1);
+    }
+  }
+  .cursor.hover {
+    width: 48px; height: 48px;
+    background: transparent;
+    border-color: var(--ink);
+    box-shadow:
+      0 0 12px rgba(255, 255, 255, 0.45),
+      0 0 28px rgba(255, 255, 255, 0.22),
+      0 0 56px rgba(255, 255, 255, 0.10),
+      0 0 96px rgba(255, 255, 255, 0.04);
+    animation: cursorBreath 2.4s cubic-bezier(.4,0,.6,1) infinite;
+  }
+  .cursor.scrolling { animation: none; }
+  .cursor.scrolling {
+    width: 4px;
+    height: 26px;
+    background: var(--ink);
+    border-color: transparent;
+    border-radius: 999px;
+    box-shadow:
+      0   0 5px  rgba(255, 255, 255, 0.70),
+      0   0 10px rgba(255, 255, 255, 0.42),
+      0  -8px 12px rgba(255, 255, 255, 0.28),
+      0   8px 12px rgba(255, 255, 255, 0.28),
+      0 -18px 20px rgba(255, 255, 255, 0.14),
+      0  18px 20px rgba(255, 255, 255, 0.14),
+      0 -32px 28px rgba(255, 255, 255, 0.06),
+      0  32px 28px rgba(255, 255, 255, 0.06);
+  }
+  @media (hover: none) {
+    body, a, button, input { cursor: auto; }
+    .cursor { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cursor.hover { animation: none; }
+  }
   body::before {
     content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 200;
     opacity: .5; mix-blend-mode: overlay;
@@ -84,7 +161,7 @@
   }
   nav .logo { color: var(--ink); text-decoration: none; font-family: var(--font-mono); font-size: 13px; opacity: .7; transition: opacity .2s; }
   nav .logo:hover { opacity: 1; }
-  nav ul { list-style: none; display: flex; gap: 32px; margin-left: auto; }
+  nav ul { list-style: none; display: flex; gap: 32px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
   nav ul li a { color: var(--ink-soft); text-decoration: none; transition: color .2s; }
   nav ul li a:hover { color: var(--ink); }
   main {
@@ -214,6 +291,7 @@
 <body>
 <a class="skip-link" href="#main">skip to content</a>
 <div class="grid-bg"></div>
+<div class="cursor" id="cursor"></div>
 <nav>
   <a href="index.html" class="logo">Aryan Mondal</a>
   <ul>
@@ -221,6 +299,7 @@
     <li><a href="index.html#about">about</a></li>
     <li><a href="index.html#contact">contact</a></li>
     <li><a href="cv.pdf" target="_blank" rel="noopener">cv ↗</a></li>
+    <li><a href="resume.pdf" target="_blank" rel="noopener">resume ↗</a></li>
     <li><a href="https://scholar.google.com/citations?user=Si4um1MAAAAJ" target="_blank" rel="noopener">scholar ↗</a></li>
   </ul>
 </nav>
@@ -234,6 +313,86 @@
 </main>
 <script>
 (function typographyFavicon(){const f=document.getElementById('favicon');if(!f)return;const A=!(window.matchMedia&&window.matchMedia('(hover: none)').matches);const c=document.createElement('canvas');c.width=64;c.height=64;const x=c.getContext('2d');let t=0,p=false;function r(){x.clearRect(0,0,64,64);x.fillStyle='#000';x.beginPath();const n=12;x.moveTo(n,0);x.lineTo(64-n,0);x.quadraticCurveTo(64,0,64,n);x.lineTo(64,64-n);x.quadraticCurveTo(64,64,64-n,64);x.lineTo(n,64);x.quadraticCurveTo(0,64,0,64-n);x.lineTo(0,n);x.quadraticCurveTo(0,0,n,0);x.closePath();x.fill();x.fillStyle='#fff';x.font='italic 500 32px Georgia,"Times New Roman",serif';x.textAlign='center';x.textBaseline='middle';x.fillText('a',32,34);x.save();x.translate(32,32);x.rotate(t*.06);x.strokeStyle='#fff';x.globalAlpha=.55;x.lineWidth=1.5;x.setLineDash([3,4]);x.beginPath();x.arc(0,0,26,0,Math.PI*2);x.stroke();x.restore();const a=t*.09;x.globalAlpha=1;x.fillStyle='#fff';x.beginPath();x.arc(32+Math.cos(a)*26,32+Math.sin(a)*26,2.2,0,Math.PI*2);x.fill();f.href=c.toDataURL('image/png');t++;if(A&&!p)setTimeout(r,70)}r();document.addEventListener('visibilitychange',()=>{if(document.hidden)p=true;else{p=false;if(A)r()}})})();
+</script>
+<!-- Animates the .grid-bg dot field. -->
+<script src="dist/blinking-dots.js"></script>
+<script>
+  /* ── custom cursor ── */
+  (function setupCursor() {
+    const cursor = document.getElementById('cursor');
+    if (!cursor) return;
+    if (window.matchMedia('(hover: none)').matches) { cursor.style.display = 'none'; return; }
+    let cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    let tx = cx, ty = cy;
+    cursor.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`;
+    document.body.classList.add('custom-cursor');
+    window.addEventListener('mousemove', (e) => { tx = e.clientX; ty = e.clientY; }, { passive: true });
+    const CURSOR_FOLLOW = 18;
+    let lastCursor = 0;
+    let settled = false;
+    function updateCursor() {
+      const now = performance.now();
+      const dt = lastCursor ? Math.min((now - lastCursor) * 0.001, 0.05) : 1 / 60;
+      lastCursor = now;
+      const follow = 1 - Math.exp(-CURSOR_FOLLOW * dt);
+      cx += (tx - cx) * follow;
+      cy += (ty - cy) * follow;
+      if (Math.abs(tx - cx) < 0.01 && Math.abs(ty - cy) < 0.01) {
+        if (settled) return;
+        settled = true; cx = tx; cy = ty;
+      } else settled = false;
+      cursor.style.transform = `translate3d(${cx}px, ${cy}px, 0) translate(-50%, -50%)`;
+    }
+    if (window.gsap) {
+      gsap.ticker.add(updateCursor);
+    } else {
+      (function raf() { updateCursor(); requestAnimationFrame(raf); })();
+    }
+    document.querySelectorAll('a, button').forEach(el => {
+      el.addEventListener('mouseenter', () => cursor.classList.add('hover'));
+      el.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
+    });
+  })();
+
+  /* ── cursor: scrolling state driven by INPUT events, not scroll position ── */
+  (function cursorScrollState() {
+    const cursorEl = document.getElementById('cursor');
+    if (!cursorEl || window.matchMedia('(hover: none)').matches) return;
+
+    let clearTimer = null;
+    const IDLE_MS = 110;
+    const SCROLL_KEYS = new Set([
+      'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp',
+      'Home', 'End', 'Spacebar', ' '
+    ]);
+
+    function clearNow() {
+      clearTimeout(clearTimer);
+      clearTimer = null;
+      cursorEl.classList.remove('scrolling');
+    }
+    function ping() {
+      cursorEl.classList.add('scrolling');
+      clearTimeout(clearTimer);
+      clearTimer = setTimeout(clearNow, IDLE_MS);
+    }
+
+    window.addEventListener('wheel', ping, { passive: true });
+    window.addEventListener('touchstart', ping, { passive: true });
+    window.addEventListener('touchmove', ping, { passive: true });
+    window.addEventListener('touchend', () => {
+      clearTimeout(clearTimer);
+      clearTimer = setTimeout(clearNow, IDLE_MS);
+    }, { passive: true });
+    window.addEventListener('keydown', (e) => {
+      if (SCROLL_KEYS.has(e.key)) ping();
+    });
+    window.addEventListener('pointermove', () => {
+      if (cursorEl.classList.contains('scrolling') && !clearTimer) {
+        cursorEl.classList.remove('scrolling');
+      }
+    }, { passive: true });
+  })();
 </script>
 </body>
 </html>
