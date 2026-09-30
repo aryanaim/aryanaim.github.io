@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en" style="background:#000">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>html,body{background:#000}::view-transition-group(root){background:#000}</style>
+<title>R-HAAP: UAV Swarm Authentication</title>
+<meta name="description" content="Lightweight UAV swarm authentication using ECDH, HKDF per-packet key derivation, and ChaCha20-Poly1305 AEAD. IEEE CONECCT 2026." />
+<meta name="theme-color" content="#000000" />
+<link rel="icon" id="favicon" type="image/png" />
+
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+<meta name="color-scheme" content="dark" />
+<meta name="view-transition" content="same-origin" />
+<meta name="format-detection" content="telephone=no" />
+
+<!-- Open Graph / social previews -->
+<meta property="og:title" content="R-HAAP: UAV Swarm Authentication" />
+<meta property="og:description" content="Lightweight UAV swarm authentication using ECDH, HKDF per-packet key derivation, and ChaCha20-Poly1305 AEAD. IEEE CONECCT 2026." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://aryanaim.me/rhaap.html" />
+<meta property="og:image" content="https://aryanaim.me/og-image.png" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+
+<!-- the three CDN scripts at the end of <body> are discovered late; without
+     these, two cold handshakes sit on the path to interactivity -->
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+<link rel="preconnect" href="https://unpkg.com" crossorigin />
+
+<!-- Satoshi is @font-face'd below, so it isn't requested until the blocking
+     sheet above lands and style resolution reaches an element needing it.
+     crossorigin is required even same-origin, or the preload isn't matched. -->
+<link rel="preload" href="fonts/satoshi-regular.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="fonts/satoshi-italic.woff2" as="font" type="font/woff2" crossorigin />
+
+<style>
+  /* self-hosted instead of Google Fonts CDN -- avoids a render-blocking
+     third-party request for the site's primary display/body font. */
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('fonts/satoshi-regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('fonts/satoshi-italic.woff2') format('woff2');
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+  }
+
+  :root {
+    --bg:       #000000;
+    --bg-2:     #0a0a0a;
+    --ink:      #ffffff;
+    --ink-soft: #9a9a9a;
+    --ink-dim:  #7a7a7a;
+    --muted:    #767676;
+    --rule:     rgba(255, 255, 255, 0.10);
+    --rule-2:   rgba(255, 255, 255, 0.18);
+    --font-replica-regular: 'Satoshi', -apple-system, sans-serif;
+    --font-replica-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); }
+
+  body {
+    color: var(--ink);
+    font-family: var(--font-replica-regular);
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 1.5;
+    letter-spacing: -0.014em;
+    -webkit-font-smoothing: antialiased;
+    /* iOS Safari inflates type in landscape without this. */
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+    overflow-x: hidden;
+  }
+
+  /* ─── custom scrollbar ─── */
+  html { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.16) transparent; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.04);
+    transition: background .4s ease;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(255,255,255,0.45), rgba(255,255,255,0.22));
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, rgba(255,255,255,0.65), rgba(255,255,255,0.35));
+  }
+  ::-webkit-scrollbar-corner { background: transparent; }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+    transition:
+      color .55s cubic-bezier(.16,1,.3,1),
+      text-shadow .85s cubic-bezier(.22,.61,.36,1);
+  }
+  @keyframes linkGlow {
+    0%   { text-shadow:
+            0 0 6px  rgba(255,255,255,0.35),
+            0 0 14px rgba(255,255,255,0.15),
+            0 0 24px rgba(255,255,255,0.05); }
+    50%  { text-shadow:
+            0 0 12px rgba(255,255,255,0.75),
+            0 0 26px rgba(255,255,255,0.35),
+            0 0 44px rgba(255,255,255,0.14); }
+    100% { text-shadow:
+            0 0 6px  rgba(255,255,255,0.35),
+            0 0 14px rgba(255,255,255,0.15),
+            0 0 24px rgba(255,255,255,0.05); }
+  }
+  a:hover {
+    text-shadow:
+      0 0 8px  rgba(255, 255, 255, 0.55),
+      0 0 18px rgba(255, 255, 255, 0.25),
+      0 0 32px rgba(255, 255, 255, 0.08);
+    animation: linkGlow 2.6s cubic-bezier(.4,0,.6,1) infinite;
+  }
+  .logo:hover,
+  .cta:hover { text-shadow: none; animation: none; }
+  @media (prefers-reduced-motion: reduce) {
+    a:hover { animation: none; }
+  }
+
+  body.custom-cursor,
+  body.custom-cursor * { cursor: none !important; }
+
+  /* custom cursor */
+  .cursor {
+    position: fixed; top: 0; left: 0;
+    width: 10px; height: 10px;
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 50%;
+    pointer-events: none; z-index: 9999;
+    transform: translate(-50%, -50%);
+    will-change: transform;
+    /* Same easing, pulled in from the original .6s without going as tight as
+       .28s -- the ring answers the hover instead of trailing it, but still
+       blooms open rather than snapping. */
+    transition: width .4s cubic-bezier(.22,.61,.36,1),
+                height .4s cubic-bezier(.22,.61,.36,1),
+                background .32s cubic-bezier(.22,.61,.36,1),
+                border-color .32s cubic-bezier(.22,.61,.36,1),
+                box-shadow .46s cubic-bezier(.22,.61,.36,1);
+    box-shadow:
+      0 0 6px  rgba(255, 255, 255, 0.42),
+      0 0 14px rgba(255, 255, 255, 0.22),
+      0 0 28px rgba(255, 255, 255, 0.10),
+      0 0 52px rgba(255, 255, 255, 0.04);
+  }
+  @keyframes cursorBreath {
+    0%, 100% {
+      box-shadow:
+        0 0 10px rgba(255,255,255,0.38),
+        0 0 24px rgba(255,255,255,0.18),
+        0 0 48px rgba(255,255,255,0.08),
+        0 0 88px rgba(255,255,255,0.03);
+      border-color: rgba(255,255,255,0.75);
+    }
+    50% {
+      box-shadow:
+        0 0 16px rgba(255,255,255,0.62),
+        0 0 36px rgba(255,255,255,0.30),
+        0 0 72px rgba(255,255,255,0.14),
+        0 0 120px rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,1);
+    }
+  }
+  .cursor.hover {
+    width: 48px; height: 48px;
+    background: transparent;
+    border-color: var(--ink);
+    box-shadow:
+      0 0 12px rgba(255, 255, 255, 0.45),
+      0 0 28px rgba(255, 255, 255, 0.22),
+      0 0 56px rgba(255, 255, 255, 0.10),
+      0 0 96px rgba(255, 255, 255, 0.04);
+    animation: cursorBreath 2.4s cubic-bezier(.4,0,.6,1) infinite;
+  }
+  .cursor.scrolling { animation: none; }
+  .cursor.scrolling {
+    width: 4px;
+    height: 26px;
+    background: var(--ink);
+    border-color: transparent;
+    border-radius: 999px;
+    box-shadow:
+      0   0 5px  rgba(255, 255, 255, 0.70),
+      0   0 10px rgba(255, 255, 255, 0.42),
+      0  -8px 12px rgba(255, 255, 255, 0.28),
+      0   8px 12px rgba(255, 255, 255, 0.28),
+      0 -18px 20px rgba(255, 255, 255, 0.14),
+      0  18px 20px rgba(255, 255, 255, 0.14),
+      0 -32px 28px rgba(255, 255, 255, 0.06),
+      0  32px 28px rgba(255, 255, 255, 0.06);
+  }
+  @media (hover: none) {
+    body, a, button, input { cursor: auto; }
+    .cursor { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cursor.hover { animation: none; }
+  }
+
+  /* high-refresh smoothing hints (active when Lenis is engaged) */
+  html.lenis { scroll-behavior: auto; }
+  html.lenis body { overscroll-behavior: none; }
+
+  /* scroll-reveal initial state */
+  /* scroll-behavior is handled by Lenis */
+
+  /* ─── View Transitions API ─── */
+  ::view-transition {
+    background: #000;
+  }
+  ::view-transition-group(root) {
+    background: #000;
+  }
+  ::view-transition-image-pair(root) {
+    background: #000;
+    isolation: isolate;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    mix-blend-mode: normal;
+  }
+
+  @view-transition { navigation: auto; }
+  ::view-transition-old(root) {
+    animation: 0.35s ease-out both vt-fade-out;
+  }
+  ::view-transition-new(root) {
+    animation: 0.45s ease-out 0.08s both vt-fade-in;
+  }
+  @keyframes vt-fade-out {
+    to { opacity: 0; transform: scale(0.96); }
+  }
+  @keyframes vt-fade-in {
+    from { opacity: 0; transform: scale(1.04); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    ::view-transition-old(root),
+    ::view-transition-new(root) { animation: none; }
+  }
+
+  /* shared chrome */
+  .grid-bg {
+    position: fixed; inset: 0; z-index: 1;
+    pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.14) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+  }
+  /* The same grid, blinking: dist/blinking-dots.js mounts a canvas in here, so
+     it inherits the placement and the radial mask above for free. The static
+     CSS dots step aside only once the canvas has a frame up -- and stay put
+     entirely when there's no JS, no canvas, or reduced motion. */
+  .grid-bg > canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+    opacity: 0;
+    transition: opacity 1.2s cubic-bezier(.22,.61,.36,1);
+  }
+  .grid-bg.dots-live { background-image: none; }
+  .grid-bg.dots-live > canvas { opacity: 1; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    pointer-events: none; z-index: 200;
+    opacity: 0.5; mix-blend-mode: overlay;
+    background-image: var(--grain, url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"));
+  }
+  body::after {
+    content: ''; position: fixed; inset: 0;
+    pointer-events: none; z-index: 1;
+    background: radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.65) 80%, rgba(0,0,0,1) 100%);
+    animation: vignette 9s ease-in-out infinite;
+  }
+  @keyframes vignette {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.78; }
+  }
+
+  main, nav { position: relative; z-index: 2; }
+
+  /* nav — aligned with index */
+  nav {
+    position: relative;
+    z-index: 50;
+    padding: 22px 40px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: var(--font-replica-regular);
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: -0.014em;
+  }
+  /* the tint/blur live on a pseudo-element taller than nav's own box (which
+     is only ~80px) so the dissolve into the hero plays out over ~200px
+     instead of being compressed into a short, quick fade. */
+  nav::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 200px;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 40%, transparent 100%);
+    mask-image: linear-gradient(180deg, black 0%, black 40%, transparent 100%);
+    -webkit-mask-image: linear-gradient(180deg, black 0%, black 40%, transparent 100%);
+  }
+  nav .logo {
+    font-family: var(--font-replica-regular); font-weight: 400; font-size: 14px;
+    letter-spacing: -0.014em;
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  nav ul { display: flex; gap: 30px; list-style: none; flex-wrap: wrap; justify-content: flex-end; }
+  nav a {
+    position: relative; padding: 4px 2px;
+    transition:
+      color .55s cubic-bezier(.16,1,.3,1),
+      letter-spacing .7s cubic-bezier(.16,1,.3,1),
+      text-shadow .8s cubic-bezier(.16,1,.3,1),
+      transform .65s cubic-bezier(.16,1,.3,1);
+    color: var(--ink-soft);
+    display: inline-block;
+  }
+  @keyframes navGlow {
+    0%   { text-shadow:
+            0 0 6px  rgba(255,255,255,0.45),
+            0 0 16px rgba(255,255,255,0.18),
+            0 0 28px rgba(255,255,255,0.06); }
+    50%  { text-shadow:
+            0 0 14px rgba(255,255,255,0.85),
+            0 0 28px rgba(255,255,255,0.45),
+            0 0 48px rgba(255,255,255,0.18); }
+    100% { text-shadow:
+            0 0 6px  rgba(255,255,255,0.45),
+            0 0 16px rgba(255,255,255,0.18),
+            0 0 28px rgba(255,255,255,0.06); }
+  }
+  nav a:hover {
+    color: var(--ink);
+    letter-spacing: 0.06em;
+    transform: translateY(-1px);
+    text-shadow:
+      0 0 8px  rgba(255,255,255,0.65),
+      0 0 18px rgba(255,255,255,0.30),
+      0 0 34px rgba(255,255,255,0.12);
+    animation: navGlow 2.4s cubic-bezier(.4,0,.6,1) infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    nav a:hover { animation: none; }
+  }
+
+  /* hero */
+  .paper-hero {
+    padding: 50px 40px 60px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .paper-hero h1 {
+    font-family: var(--font-replica-regular);
+    font-weight: 400;
+    font-size: clamp(36px, 5.8vw, 88px);
+    line-height: 1.0;
+    letter-spacing: -0.025em;
+    max-width: 1100px;
+  }
+  .paper-subtitle {
+    margin-top: 22px;
+    font-family: var(--font-replica-regular);
+    font-style: italic;
+    font-size: clamp(20px, 2vw, 30px);
+    line-height: 1.35;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    max-width: 820px;
+  }
+
+  .paper-meta-strip {
+    margin-top: 48px;
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 18px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--font-replica-mono); font-size: 11px;
+    color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: 0.16em;
+  }
+  .paper-meta-strip em {
+    font-style: normal; color: var(--ink); margin-right: 4px;
+  }
+  .paper-meta-strip .dash { color: var(--muted); }
+  .paper-meta-strip .pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    color: var(--ink-soft);
+  }
+
+  /* body */
+  .paper-body {
+    padding: 80px 40px 60px;
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 70px;
+    align-items: start;
+  }
+  .paper-body > .section-label {
+    position: sticky; top: 110px;
+    align-self: start;
+    display: inline-flex; align-items: center; gap: 12px;
+    font-family: var(--font-replica-regular); font-size: 11px; font-weight: 400;
+    color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: -0.014em;
+  }
+  .paper-body > .section-label::before {
+    content: none;
+  }
+  .paper-body .rail-content { min-width: 0; max-width: 760px; }
+
+  .paper-section { margin-bottom: 72px; }
+  .paper-section h2 {
+    font-family: var(--font-replica-mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .paper-section .lede {
+    font-family: var(--font-replica-regular);
+    font-size: clamp(16px, 1.4vw, 20px);
+    line-height: 1.45;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .paper-section p {
+    margin-top: 18px;
+    font-size: 15.5px;
+    line-height: 1.78;
+    color: var(--ink-soft);
+    max-width: 720px;
+  }
+
+  /* authors */
+  .author-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 22px 30px;
+    list-style: none;
+  }
+  .author-list li {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .author-list .name {
+    font-family: var(--font-replica-mono); font-size: 13px;
+    color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: 0.12em;
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .author-list li.me .name { color: var(--ink); }
+  .author-list .affil {
+    font-family: var(--font-replica-mono); font-size: 10px;
+    color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: 0.14em;
+    line-height: 1.5;
+  }
+  .author-list .email {
+    font-family: var(--font-replica-mono); font-size: 10.5px;
+    color: var(--ink-soft);
+    letter-spacing: 0.04em;
+    text-transform: none;
+  }
+
+  .keyword-list {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .keyword-list .kw {
+    display: inline-block;
+    padding: 6px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    font-family: var(--font-replica-mono); font-size: 10px;
+    color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: 0.14em;
+    transition: color .4s ease, border-color .55s ease,
+                background .55s cubic-bezier(.16,1,.3,1),
+                transform .55s cubic-bezier(.16,1,.3,1);
+  }
+  .keyword-list .kw:hover {
+    color: var(--ink);
+    border-color: var(--rule-2);
+    background: rgba(255,255,255,0.04);
+    transform: translateY(-2px);
+  }
+
+  /* highlights */
+  .highlights {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .highlight {
+    padding: 24px 22px;
+    background: var(--bg);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .highlight .value {
+    font-family: var(--font-replica-regular);
+    font-style: italic;
+    font-size: clamp(34px, 3.4vw, 48px);
+    line-height: 1;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+  }
+  .highlight .label {
+    font-family: var(--font-replica-mono); font-size: 10px;
+    color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: 0.16em;
+    line-height: 1.5;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 22px 40px;
+  }
+  .info-grid .cell {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .info-grid .cell .k {
+    font-family: var(--font-replica-mono); font-size: 10px;
+    color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: 0.18em;
+  }
+  .info-grid .cell .v {
+    font-family: var(--font-replica-mono); font-size: 13px;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+    word-break: break-word;
+  }
+  .info-grid .cell .v.serif {
+    font-family: var(--font-replica-regular);
+    font-style: italic;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  .info-grid .cell .v a { color: var(--ink); }
+
+  /* Citation block. The copy control reuses .cta, so the only new surface here
+     is the <pre>: mono, hairline-boxed, and scrolled horizontally rather than
+     wrapped -- BibTeX is line-oriented and soft-wrapping hides its structure. */
+  .bibtex {
+    margin-top: 20px;
+    padding: 22px 24px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--bg-2);
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    font-family: var(--font-replica-mono);
+    font-size: 12.5px;
+    line-height: 1.75;
+    letter-spacing: 0.01em;
+    color: var(--ink-soft);
+  }
+  .bibtex code { font: inherit; color: inherit; }
+  @media (max-width: 480px) {
+    .bibtex { padding: 16px 14px; font-size: 11px; }
+  }
+
+  /* CTA */
+  .cta-row {
+    margin-top: 24px;
+    display: flex; flex-wrap: wrap; gap: 14px;
+  }
+  .cta {
+    display: inline-flex; align-items: center; gap: 14px;
+    padding: 16px 26px;
+    border: 1px solid var(--rule-2);
+    border-radius: 999px;
+    font-family: var(--font-replica-mono); font-size: 11px;
+    color: var(--ink);
+    text-transform: uppercase; letter-spacing: 0.16em;
+    background: rgba(255,255,255,0.02);
+    -webkit-tap-highlight-color: transparent;
+    transition: background .55s cubic-bezier(.16,1,.3,1),
+                color .45s ease,
+                border-color .55s ease,
+                transform .55s cubic-bezier(.16,1,.3,1),
+                letter-spacing .55s cubic-bezier(.16,1,.3,1),
+                box-shadow .55s ease;
+  }
+  /* Both label strings sit stacked in the same grid cell, so the cell (and
+     therefore the button) is always sized to the wider of the two -- the
+     click handler just crossfades between them instead of swapping
+     textContent, so the button never resizes when the text changes. */
+  .copy-bib .label-swap { display: grid; }
+  .copy-bib .label-swap .label { grid-area: 1 / 1; transition: opacity 120ms cubic-bezier(.16,1,.3,1); }
+  .copy-bib .label-swap .label-done { opacity: 0; }
+  .copy-bib.is-copied .label-swap .label-idle { opacity: 0; }
+  .copy-bib.is-copied .label-swap .label-done { opacity: 1; }
+  .cta:hover {
+    background: var(--ink); color: var(--bg); border-color: var(--ink);
+    transform: translateY(-2px);
+    letter-spacing: 0.2em;
+    box-shadow: 0 12px 30px rgba(255,255,255,0.08);
+  }
+  .cta:active {
+    transform: translateY(-2px) scale(0.97);
+    transition: transform 140ms cubic-bezier(.16,1,.3,1);
+  }
+  .cta .arrow { transition: transform .6s cubic-bezier(.16,1,.3,1); display: inline-block; }
+  .cta:hover .arrow { transform: translateX(8px); }
+  .cta.ghost {
+    background: transparent;
+    color: var(--ink-soft);
+  }
+  .cta.ghost:hover {
+    background: rgba(255,255,255,0.04);
+    color: var(--ink);
+    border-color: var(--rule-2);
+  }
+
+  .end-credit {
+    position: relative;
+    z-index: 250;
+    padding: 18px 40px 22px;
+    background: var(--bg);
+    border-top: 1px solid var(--rule);
+    font-family: var(--font-replica-regular);
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+  }
+  @media (max-width: 820px) {
+    .end-credit { padding: 14px 20px 18px; font-size: 9.5px; }
+  }
+
+  /* Large tablet / small desktop */
+  @media (max-width: 1100px) {
+    nav { padding: 18px 28px; }
+    .paper-hero { padding: 44px 28px 52px; }
+    .paper-body { grid-template-columns: 140px 1fr; gap: 48px; padding: 70px 28px 50px; }
+    .paper-body > .section-label { top: 100px; }
+    .info-grid { gap: 22px 32px; }
+  }
+
+  /* Tablet portrait / large mobile */
+  @media (max-width: 820px) {
+    nav { padding: 18px 20px; }
+    nav ul { gap: 18px; font-size: 12px; }
+    .paper-hero { padding: 36px 20px 44px; }
+    .paper-body { grid-template-columns: 1fr; gap: 28px; padding: 60px 20px; }
+    .paper-body > .section-label { position: static; }
+    .paper-meta-strip { gap: 12px; }
+    .info-grid, .highlights { grid-template-columns: 1fr; }
+    .cta-row { gap: 12px; }
+    .cta { padding: 14px 22px; font-size: 11px; }
+  }
+
+  /* Small mobile */
+  @media (max-width: 480px) {
+    nav { padding: 14px 16px; }
+    nav ul { gap: 14px; font-size: 11px; }
+    nav .logo { font-size: 13px; }
+    .paper-hero { padding: 28px 16px 36px; }
+    .paper-hero h1 { font-size: clamp(28px, 8.5vw, 56px); line-height: 1.04; }
+    .paper-subtitle { font-size: clamp(15px, 4.2vw, 22px); margin-top: 18px; }
+    .paper-meta-strip { gap: 10px; padding-top: 18px; font-size: 10px; letter-spacing: 0.14em; }
+    .paper-body { padding: 40px 16px; gap: 24px; }
+    .paper-section { margin-bottom: 48px; }
+    .paper-section h2 { font-size: 10px; letter-spacing: 0.16em; }
+    .paper-section .lede { font-size: clamp(14px, 4vw, 17px); }
+    .paper-section p { font-size: 14px; line-height: 1.7; }
+    .highlight { padding: 18px 16px; }
+    .highlight .value { font-size: clamp(28px, 9vw, 40px); }
+    .highlight .label { font-size: 9px; letter-spacing: 0.14em; }
+    .keyword-list .kw { font-size: 9px; padding: 5px 10px; }
+    .author-list { gap: 18px 22px; }
+    .author-list .name { font-size: 12px; }
+    .author-list .affil, .author-list .email { font-size: 9.5px; }
+    .info-grid .cell .v.serif { font-size: 18px; }
+    .info-grid .cell .v { font-size: 12px; }
+    .cta { padding: 12px 18px; font-size: 10px; gap: 10px; letter-spacing: 0.14em; }
+    body { cursor: auto; }
+    .cursor { display: none; }
+    .end-credit { padding: 12px 16px 16px; font-size: 9.5px; letter-spacing: 0.14em; }
+  }
+
+  /* Landscape phones (low-height + wide) */
+  @media (orientation: landscape) and (max-height: 520px) {
+    .paper-hero { padding: 24px 24px 32px; }
+    .paper-body { padding: 40px 24px; }
+  }
+
+
+  /* Keyboard-only escape hatch past the nav. Parked off-canvas rather than
+     display:none so it stays in the tab order, and it is the first focusable
+     element in the document. */
+  .skip-link {
+    position: fixed;
+    top: 12px; left: 12px;
+    z-index: 300;
+    padding: 10px 18px;
+    border-radius: 4px;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--font-replica-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    transform: translateY(calc(-100% - 24px));
+    transition: transform .18s cubic-bezier(.16,1,.3,1);
+  }
+  .skip-link:focus { transform: translateY(0); }
+  /* The skip target takes focus programmatically; a ring around the whole
+     page reads as breakage, and the scroll jump is the affordance. */
+  main:focus { outline: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .skip-link { transition: none; }
+  }
+
+  /* Touch targets. These labels are 10-13px type, which leaves hit boxes of
+     14-25px on a phone -- below the 24px WCAG 2.5.8 floor in places, and well
+     under the 44px both platform guidelines ask for. Grown with padding, with
+     the inline axis pulled back by an equal negative margin so nothing moves.
+     Vertical padding on an inline box grows the hit area without touching the
+     line box, so the layout is identical. Scoped to coarse pointers, so mouse
+     hover regions are left exactly as they were. */
+  @media (hover: none) and (pointer: coarse) {
+    nav .logo,
+    nav ul li a { padding-block: 15px; padding-inline: 6px; margin-inline: -6px; }
+    .info-grid .cell .v a { padding-block: 14px; }
+  }
+</style>
+
+<script>
+(function() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 256;
+  const ctx = c.getContext('2d');
+  const imageData = ctx.createImageData(256, 256);
+  const d = imageData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const v = Math.random() * 255;
+    d[i] = d[i+1] = d[i+2] = v;
+    d[i+3] = 36;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  document.documentElement.style.setProperty('--grain', 'url("' + c.toDataURL() + '")');
+})();
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ScholarlyArticle",
+  "name": "R-HAAP: UAV Swarm Authentication",
+  "description": "Lightweight UAV swarm authentication using ECDH, HKDF per-packet key derivation, and ChaCha20-Poly1305 AEAD. IEEE CONECCT 2026.",
+  "author": {
+    "@type": "Person",
+    "name": "Aryan Mondal"
+  },
+  "url": "https://aryanaim.me/rhaap.html"
+}
+</script>
+
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<div class="grid-bg" aria-hidden="true"></div>
+<div class="cursor" id="cursor"></div>
+
+<nav>
+  <a href="index.html" class="logo">Aryan Mondal</a>
+  <ul>
+    <li><a href="index.html#work">work</a></li>
+    <li><a href="index.html#about">about</a></li>
+    <li><a href="index.html#contact">contact</a></li>
+    <li><a href="cv.pdf" target="_blank" rel="noopener">cv ↗</a></li>
+    <li><a href="resume.pdf" target="_blank" rel="noopener">resume ↗</a></li>
+    <li><a href="https://scholar.google.com/citations?user=Si4um1MAAAAJ" target="_blank" rel="noopener">scholar ↗</a></li>
+  </ul>
+</nav>
+
+
+<main id="main" tabindex="-1">
+
+  <section class="paper-hero" id="top">
+    <h1>
+      Lightweight Authentication<br />
+      for UAV Swarms
+    </h1>
+    <p class="paper-subtitle">
+      R-HAAP: per-packet keys from HKDF and ChaCha20-Poly1305 AEAD, in place of the chaotic-map cryptography that lightweight UAV protocols have relied on.
+    </p>
+    <div class="paper-meta-strip">
+      <span><em>IEEE CONECCT 2026</em> · Jul 2–5</span>
+      <span class="dash">—</span>
+      <span class="pill">peer-reviewed</span>
+      <span class="dash">—</span>
+      <span>applied cryptography</span>
+      <span class="dash">—</span>
+      <span>embedded systems</span>
+    </div>
+
+  </section>
+
+  <section class="paper-body">
+    <div class="section-label">document</div>
+    <div class="rail-content">
+
+      <div class="paper-section" id="abstract">
+        <h2>abstract</h2>
+        <p class="lede">
+          Increasingly critical operations employing Unmanned Aerial Vehicles (UAVs) reveal a major link vulnerability in their communications. Traditional lightweight protocols are based on static keys or cryptographically weak chaotic maps that cannot provide adequate security. This paper proposes R-HAAP, a Robust HKDF-AEAD Authentication Protocol, which provides a secure channel based on established cryptographic standards. R-HAAP replaces problematic chaotic-based keystreams with a structured approach: first, a shared secret is established via Elliptic-Curve Diffie-Hellman (ECDH); second, this secret is used with an HMAC-based Key Derivation Function (HKDF) to generate unique, per-packet symmetric keys; and third, all communication is secured using the ChaCha20-Poly1305 Authenticated Encryption with Associated Data (AEAD) cipher. This method cryptographically links packet metadata, such as UAV ID and packet offsets, to the message, thereby preventing replay and forgery attacks. Validation of R-HAAP using UavNetSim-v1, a high-fidelity discrete-event simulation framework, demonstrates minimal latency and high packet delivery rates in swarm conditions. A comprehensive, multi-layer security analysis confirms the protocol’s resilience against network-level attacks, implementation-specific side-channels, and its role in mitigating sensor-level (e.g., GPS spoofing) and supply-chain threats. R-HAAP offers a secure, flexible, and high-performance foundation for next-generation UAVs and FANETs.
+        </p>
+      </div>
+
+      <div class="paper-section" id="results">
+        <h2>key results</h2>
+        <div class="highlights">
+          <div class="highlight">
+            <span class="value">99.8<span style="font-size:0.55em;">%+</span></span>
+            <span class="label">Packet delivery rate, held from 10 to 100 UAVs</span>
+          </div>
+          <div class="highlight">
+            <span class="value">150–250<span style="font-size:0.4em;"> µs</span></span>
+            <span class="label">Per-packet crypto cost on an ARM Cortex-M4 at 168 MHz</span>
+          </div>
+          <div class="highlight">
+            <span class="value">&lt;15<span style="font-size:0.55em;"> ms</span></span>
+            <span class="label">Average end-to-end delay with a 100-UAV swarm</span>
+          </div>
+          <div class="highlight">
+            <span class="value">32<span style="font-size:0.55em;"> B</span></span>
+            <span class="label">Fixed per-packet overhead: 16 B AAD plus 16 B Poly1305 tag</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="paper-section" id="authors">
+        <h2>authors</h2>
+        <ul class="author-list">
+          <li class="me">
+            <span class="name">Aryan Mondal</span>
+            <span class="affil">Dept. of Networking and Communications · SRM Institute of Science and Technology · Kattankulathur, India</span>
+          </li>
+          <li>
+            <span class="name">Abhradeep Basak</span>
+            <span class="affil">Dept. of Networking and Communications · SRM Institute of Science and Technology · Kattankulathur, India</span>
+          </li>
+          <li>
+            <span class="name">Thanga Revathi S</span>
+            <span class="affil">Dept. of Networking and Communications · SRM Institute of Science and Technology · Kattankulathur, India</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="paper-section">
+        <h2>keywords · index terms</h2>
+        <div class="keyword-list">
+          <span class="kw">uav swarms</span>
+          <span class="kw">fanets</span>
+          <span class="kw">lightweight authentication</span>
+          <span class="kw">hkdf</span>
+          <span class="kw">chacha20-poly1305</span>
+          <span class="kw">ecdh</span>
+          <span class="kw">aead</span>
+          <span class="kw">secure key derivation</span>
+        </div>
+      </div>
+
+      <div class="paper-section" id="venue">
+        <h2>venue · publication</h2>
+        <div class="info-grid">
+          <div class="cell">
+            <span class="k">conference</span>
+            <span class="v serif">IEEE CONECCT 2026</span>
+          </div>
+          <div class="cell">
+            <span class="k">dates</span>
+            <span class="v">2–5 July 2026</span>
+          </div>
+          <div class="cell">
+            <span class="k">conference record</span>
+            <span class="v">IEEE # 68978</span>
+          </div>
+          <div class="cell">
+            <span class="k">isbn</span>
+            <span class="v">979-8-3315-8867-0</span>
+          </div>
+          <div class="cell">
+            <span class="k">doi</span>
+            <span class="v"><a href="https://doi.org/10.1109/CONECCT68978.2026.11700751" target="_blank" rel="noopener">10.1109/CONECCT68978.2026.11700751</a></span>
+          </div>
+          <div class="cell">
+            <span class="k">document id</span>
+            <span class="v">IEEE Xplore · 11700751</span>
+          </div>
+          <div class="cell">
+            <span class="k">pages</span>
+            <span class="v">1 – 8</span>
+          </div>
+          <div class="cell">
+            <span class="k">location</span>
+            <span class="v">Bengaluru, India</span>
+          </div>
+          <div class="cell">
+            <span class="k">full title</span>
+            <span class="v">A Robust and Lightweight Authentication Protocol for UAV Swarm Communications using HKDF-based Key Derivation and AEAD</span>
+          </div>
+        </div>
+      </div>
+
+
+      <div class="paper-section" id="cite">
+        <h2>cite this</h2>
+        <p>
+          BibTeX for the IEEE Xplore version of record.
+        </p>
+        <pre class="bibtex"><code>@inproceedings{mondal2026robust,
+  author    = {Mondal, Aryan and Basak, Abhradeep and {Thanga Revathi S}},
+  title     = {A Robust and Lightweight Authentication Protocol for {UAV} Swarm Communications using {HKDF}-based Key Derivation and {AEAD}},
+  booktitle = {2026 IEEE International Conference on Electronics, Computing and Communication Technologies (CONECCT)},
+  year      = {2026},
+  month     = jul,
+  pages     = {1--8},
+  publisher = {IEEE},
+  isbn      = {979-8-3315-8867-0},
+  doi       = {10.1109/CONECCT68978.2026.11700751}
+}</code></pre>
+        <div class="cta-row">
+          <button type="button" class="cta ghost copy-bib">
+            <span class="label-swap">
+              <span class="label label-idle">copy bibtex</span>
+              <span class="label label-done" aria-hidden="true">copied</span>
+            </span>
+          </button>
+        </div>
+      </div>
+      <div class="paper-section" id="read">
+        <h2>read in full</h2>
+        <p>
+          Full text, the three protocol listings (session establishment, per-packet key derivation, secure transmission), the UavNetSim-v1 simulation setup, figures, tables, and the complete reference list are hosted on IEEE Xplore. This page is a landing summary — the canonical version of the paper lives there.
+        </p>
+        <div class="cta-row">
+          <a class="cta" href="https://ieeexplore.ieee.org/document/11700751" target="_blank" rel="noopener">
+            open on IEEE Xplore <span class="arrow">↗</span>
+          </a>
+          <a class="cta ghost" href="https://doi.org/10.1109/CONECCT68978.2026.11700751" target="_blank" rel="noopener">
+            resolve via DOI <span class="arrow">↗</span>
+          </a>
+          <a class="cta ghost" href="index.html#work">
+            <span class="arrow">←</span> back to publications
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<div class="end-credit">© 2026 aryan mondal</div>
+
+<!-- Loaded here instead of <head> so the initial HTML paints before these
+     third-party scripts are fetched/executed. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/lenis@1.1.20/dist/lenis.min.js"></script>
+
+<!-- Animates the .grid-bg dot field. After gsap so it can share its ticker
+     rather than starting a second rAF loop of its own. -->
+<script src="dist/blinking-dots.js"></script>
+
+<!-- INTERACTIONS -->
+<script>
+  /* ── custom cursor ── */
+  let cursor;
+  (function setupCursor() {
+    cursor = document.getElementById('cursor');
+    if (!cursor) return;
+    if (window.matchMedia('(hover: none)').matches) { cursor.style.display = 'none'; return; }
+    let cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    let tx = cx, ty = cy;
+    cursor.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`;
+    document.body.classList.add('custom-cursor');
+    window.addEventListener('mousemove', (e) => { tx = e.clientX; ty = e.clientY; }, { passive: true });
+    // Exponential follow, expressed as a rate per *second* so the feel is the
+    // same on a 60Hz and a 144Hz panel instead of tracking 2.4x tighter on the
+    // faster one. 1/CURSOR_FOLLOW is the time constant, which is what reads as
+    // lag: at 18 the dot closes on the pointer in ~56ms and trails a 1500px/s
+    // flick by ~85px -- softer than a locked-on 30, still well clear of the
+    // ~95ms/~150px float the original 10.5 had.
+    const CURSOR_FOLLOW = 18;
+    let lastCursor = 0;
+    let settled = false;
+    function updateCursor() {
+      const now = performance.now();
+      const dt = lastCursor ? Math.min((now - lastCursor) * 0.001, 0.05) : 1 / 60;
+      lastCursor = now;
+      const follow = 1 - Math.exp(-CURSOR_FOLLOW * dt);
+      cx += (tx - cx) * follow;
+      cy += (ty - cy) * follow;
+      // exponential follow never arrives; snap the last 1/100th px, then stop
+      // writing a fresh transform on every frame for the life of the page.
+      if (Math.abs(tx - cx) < 0.01 && Math.abs(ty - cy) < 0.01) {
+        if (settled) return;
+        settled = true; cx = tx; cy = ty;
+      } else settled = false;
+      cursor.style.transform = `translate3d(${cx}px, ${cy}px, 0) translate(-50%, -50%)`;
+    }
+    if (window.gsap) {
+      gsap.ticker.add(updateCursor);
+    } else {
+      (function raf() { updateCursor(); requestAnimationFrame(raf); })();
+    }
+    document.querySelectorAll('a, button').forEach(el => {
+      el.addEventListener('mouseenter', () => cursor.classList.add('hover'));
+      el.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
+    });
+  })();
+
+  /* ── cursor: scrolling state driven by INPUT events, not scroll position ──
+     (Lenis keeps emitting scroll events during its lerp tail; we instead
+      key off wheel/touch/keyboard so the cursor reverts the instant the
+      user stops actually scrolling, regardless of momentum.) */
+  (function cursorScrollState() {
+    const cursorEl = document.getElementById('cursor');
+    if (!cursorEl || window.matchMedia('(hover: none)').matches) return;
+
+    let clearTimer = null;
+    const IDLE_MS = 110;
+    const SCROLL_KEYS = new Set([
+      'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp',
+      'Home', 'End', 'Spacebar', ' '
+    ]);
+
+    function clearNow() {
+      clearTimeout(clearTimer);
+      clearTimer = null;
+      cursorEl.classList.remove('scrolling');
+    }
+    function ping() {
+      cursorEl.classList.add('scrolling');
+      clearTimeout(clearTimer);
+      clearTimer = setTimeout(clearNow, IDLE_MS);
+    }
+
+    window.addEventListener('wheel', ping, { passive: true });
+    window.addEventListener('touchstart', ping, { passive: true });
+    window.addEventListener('touchmove', ping, { passive: true });
+    window.addEventListener('touchend', () => {
+      clearTimeout(clearTimer);
+      clearTimer = setTimeout(clearNow, IDLE_MS);
+    }, { passive: true });
+    window.addEventListener('keydown', (e) => {
+      if (SCROLL_KEYS.has(e.key)) ping();
+    });
+    window.addEventListener('pointermove', () => {
+      if (cursorEl.classList.contains('scrolling') && !clearTimer) {
+        cursorEl.classList.remove('scrolling');
+      }
+    }, { passive: true });
+  })();
+
+  /* ── typography favicon: italic "a" + blinking cursor, rendered on canvas ── */
+  (function typographyFavicon() {
+    const favicon = document.getElementById('favicon');
+    if (!favicon) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = 64; canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+
+    let tick = 0;
+    let paused = false;
+    let timer = null;
+    // Synchronous PNG encode 14x/sec, forever, for an icon phones never
+    // show. Draw one frame, then stop. Matches index.html.
+    const animated = !(window.matchMedia
+      && window.matchMedia('(hover: none)').matches);
+
+    function render() {
+      ctx.clearRect(0, 0, 64, 64);
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      const r = 12;
+      ctx.moveTo(r, 0);
+      ctx.lineTo(64 - r, 0); ctx.quadraticCurveTo(64, 0, 64, r);
+      ctx.lineTo(64, 64 - r); ctx.quadraticCurveTo(64, 64, 64 - r, 64);
+      ctx.lineTo(r, 64); ctx.quadraticCurveTo(0, 64, 0, 64 - r);
+      ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'italic 500 32px Georgia, "Times New Roman", serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('a', 32, 34);
+
+      ctx.save();
+      ctx.translate(32, 32);
+      ctx.rotate(tick * 0.06);
+      ctx.strokeStyle = '#fff';
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.arc(0, 0, 26, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // clockwise orbiting dot
+      const a = tick * 0.09;
+      const dotX = 32 + Math.cos(a) * 26;
+      const dotY = 32 + Math.sin(a) * 26;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(dotX, dotY, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      favicon.href = canvas.toDataURL('image/png');
+      tick++;
+      if (animated && !paused) timer = setTimeout(render, 70);
+    }
+    render();
+
+    document.addEventListener('visibilitychange', () => {
+      // clear the pending timer, or returning to the tab before it fires leaves
+      // two render chains running -- every alt-tab round trip doubled them.
+      paused = document.hidden;
+      clearTimeout(timer);
+      timer = null;
+      if (animated && !paused) render();
+    });
+  })();
+
+  /* ── Lenis: smooth scrolling ── */
+  let lenis = null;
+  try {
+    if (typeof Lenis === 'function') {
+      lenis = new Lenis({
+        duration: 1.7,
+        easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -12 * t)),
+        lerp: 0.10,
+        smoothWheel: true,
+        syncTouch: true,
+        syncTouchLerp: 0.07,
+        touchInertiaMultiplier: 26,
+        wheelMultiplier: 0.85,
+        touchMultiplier: 1.35,
+        gestureOrientation: 'vertical',
+        autoResize: true
+      });
+      // smooth anchor navigation
+      document.querySelectorAll('a[href^="#"]:not(.skip-link)').forEach((a) => {
+        a.addEventListener('click', (e) => {
+          const href = a.getAttribute('href');
+          if (!href || href === '#') return;
+          const target = document.querySelector(href);
+          if (target) {
+            e.preventDefault();
+            lenis.scrollTo(target, { offset: -20, duration: 1.5 });
+          }
+        });
+      });
+      window.lenis = lenis;
+
+      // Middle-click autoscroll fights Lenis (stutters/glitches). Pause Lenis
+      // while autoscroll is active and resume when it exits.
+      let middleAutoscroll = false;
+      window.addEventListener('mousedown', (e) => {
+        if (e.button === 1) {
+          middleAutoscroll = !middleAutoscroll;
+          if (middleAutoscroll) lenis.stop();
+          else lenis.start();
+        } else if (middleAutoscroll) {
+          middleAutoscroll = false;
+          lenis.start();
+        }
+      });
+      window.addEventListener('keydown', () => {
+        if (middleAutoscroll) { middleAutoscroll = false; lenis.start(); }
+      });
+      window.addEventListener('blur', () => {
+        if (middleAutoscroll) { middleAutoscroll = false; lenis.start(); }
+      });
+
+      if (window.gsap && window.ScrollTrigger) {
+        gsap.registerPlugin(ScrollTrigger);
+        // without this, a frame over 500ms makes the ticker report 33ms
+        // instead, desyncing the clock fed to lenis.raf() below
+        gsap.ticker.lagSmoothing(0);
+        lenis.on('scroll', ScrollTrigger.update);
+        gsap.ticker.add((time) => lenis.raf(time * 1000));
+      } else {
+        function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
+        requestAnimationFrame(raf);
+      }
+    }
+  } catch (e) { console.warn('Lenis init failed:', e); }
+
+  /* ── scroll reveals for paper sections — scrub-based to match index ── */
+  if (window.gsap && window.ScrollTrigger) {
+    gsap.utils.toArray(
+      '.paper-hero h1, .paper-subtitle, .paper-meta-strip, .paper-section'
+    ).forEach((el) => {
+      gsap.fromTo(el,
+        { y: 36, opacity: 0 },
+        {
+          y: 0, opacity: 1,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: el,
+            start: 'top 88%',
+            end: 'clamp(top 38%)',
+            scrub: 0.6,
+          }
+        }
+      );
+    });
+    // refresh once Lenis is fully wired so trigger positions are accurate
+    setTimeout(() => ScrollTrigger.refresh(), 80);
+  }
+
+  /* -- copy BibTeX -- */
+  document.querySelectorAll('.copy-bib').forEach((btn) => {
+    const block = btn.closest('.paper-section').querySelector('.bibtex');
+    const idle = btn.querySelector('.label-idle');
+    const done = btn.querySelector('.label-done');
+    let reset;
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(block.textContent);
+      } catch {
+        // Clipboard unavailable (insecure origin, or permission denied). The
+        // <pre> is still selectable, so don't fake a success state.
+        return;
+      }
+      btn.classList.add('is-copied');
+      idle.setAttribute('aria-hidden', 'true');
+      done.removeAttribute('aria-hidden');
+      clearTimeout(reset);
+      reset = setTimeout(() => {
+        btn.classList.remove('is-copied');
+        done.setAttribute('aria-hidden', 'true');
+        idle.removeAttribute('aria-hidden');
+      }, 2000);
+    });
+  });
+</script>
+
+</body>
+</html>
