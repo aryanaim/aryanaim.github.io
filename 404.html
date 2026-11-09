@@ -4,10 +4,38 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>html,body{background:#000}::view-transition-group(root){background:#000}</style>
+<!-- Hardware acceleration off: WebGL is missing or software-rendered, so every
+     animated frame would be painted on the CPU. The page scripts skip the
+     shader, Lenis, canvases and custom cursor when window.__NO_GPU is set, and
+     the CSS below freezes the rest -- like reduced motion, but loops stop too. -->
+<script>
+window.__NO_GPU = (function () {
+  try {
+    var gl = document.createElement('canvas').getContext('webgl', { failIfMajorPerformanceCaveat: true });
+    if (!gl) return true;
+    var info = gl.getExtension('WEBGL_debug_renderer_info');
+    var renderer = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : '';
+    var lose = gl.getExtension('WEBGL_lose_context');
+    if (lose) lose.loseContext();
+    return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(renderer);
+  } catch (e) { return true; }
+})();
+if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
+</script>
+<style>
+  html.no-gpu { scroll-behavior: auto; }
+  html.no-gpu .reveal, html.no-gpu .pop-in { opacity: 1; transform: none; }
+  html.no-gpu *, html.no-gpu *::before, html.no-gpu *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html.no-gpu .cursor { display: none !important; }
+  html.no-gpu::view-transition-old(root), html.no-gpu::view-transition-new(root) { animation: none; }
+</style>
 <title>Page not found — Aryan Mondal</title>
 <meta name="description" content="That page does not exist." />
 <meta name="theme-color" content="#000000" />
-<link rel="icon" id="favicon" type="image/png" />
+<link rel="icon" href="favicon.png" type="image/png" />
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <meta name="color-scheme" content="dark" />
 <meta name="view-transition" content="same-origin" />
@@ -219,7 +247,6 @@
     <li><a href="index.html#work">work</a></li>
     <li><a href="index.html#about">about</a></li>
     <li><a href="index.html#contact">contact</a></li>
-    <li><a href="cv.pdf" target="_blank" rel="noopener">cv ↗</a></li>
     <li><a href="resume.pdf" target="_blank" rel="noopener">resume ↗</a></li>
     <li><a href="https://scholar.google.com/citations?user=Si4um1MAAAAJ" target="_blank" rel="noopener">scholar ↗</a></li>
   </ul>
@@ -232,8 +259,5 @@
     <a href="index.html">← back to portfolio</a>
   </div>
 </main>
-<script>
-(function typographyFavicon(){const f=document.getElementById('favicon');if(!f)return;const A=!(window.matchMedia&&window.matchMedia('(hover: none)').matches);const c=document.createElement('canvas');c.width=64;c.height=64;const x=c.getContext('2d');let t=0,p=false;function r(){x.clearRect(0,0,64,64);x.fillStyle='#000';x.beginPath();const n=12;x.moveTo(n,0);x.lineTo(64-n,0);x.quadraticCurveTo(64,0,64,n);x.lineTo(64,64-n);x.quadraticCurveTo(64,64,64-n,64);x.lineTo(n,64);x.quadraticCurveTo(0,64,0,64-n);x.lineTo(0,n);x.quadraticCurveTo(0,0,n,0);x.closePath();x.fill();x.fillStyle='#fff';x.font='italic 500 32px Georgia,"Times New Roman",serif';x.textAlign='center';x.textBaseline='middle';x.fillText('a',32,34);x.save();x.translate(32,32);x.rotate(t*.06);x.strokeStyle='#fff';x.globalAlpha=.55;x.lineWidth=1.5;x.setLineDash([3,4]);x.beginPath();x.arc(0,0,26,0,Math.PI*2);x.stroke();x.restore();const a=t*.09;x.globalAlpha=1;x.fillStyle='#fff';x.beginPath();x.arc(32+Math.cos(a)*26,32+Math.sin(a)*26,2.2,0,Math.PI*2);x.fill();f.href=c.toDataURL('image/png');t++;if(A&&!p)setTimeout(r,70)}r();document.addEventListener('visibilitychange',()=>{if(document.hidden)p=true;else{p=false;if(A)r()}})})();
-</script>
 </body>
 </html>

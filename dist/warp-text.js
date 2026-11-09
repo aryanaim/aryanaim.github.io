@@ -876,7 +876,7 @@ void main() {
   /* ── wiring ── */
 
   const hosts = Array.prototype.slice.call(document.querySelectorAll('.warp-text'));
-  if (!hosts.length) return;
+  if (!hosts.length || window.__NO_GPU) return;
 
   const reduceMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   // Nothing to show on a device that cannot hover, and the site already hides

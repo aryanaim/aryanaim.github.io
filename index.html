@@ -4,10 +4,38 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>html,body{background:#000}::view-transition-group(root){background:#000}</style>
+<!-- Hardware acceleration off: WebGL is missing or software-rendered, so every
+     animated frame would be painted on the CPU. The page scripts skip the
+     shader, Lenis, canvases and custom cursor when window.__NO_GPU is set, and
+     the CSS below freezes the rest -- like reduced motion, but loops stop too. -->
+<script>
+window.__NO_GPU = (function () {
+  try {
+    var gl = document.createElement('canvas').getContext('webgl', { failIfMajorPerformanceCaveat: true });
+    if (!gl) return true;
+    var info = gl.getExtension('WEBGL_debug_renderer_info');
+    var renderer = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : '';
+    var lose = gl.getExtension('WEBGL_lose_context');
+    if (lose) lose.loseContext();
+    return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(renderer);
+  } catch (e) { return true; }
+})();
+if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
+</script>
+<style>
+  html.no-gpu { scroll-behavior: auto; }
+  html.no-gpu .reveal, html.no-gpu .pop-in { opacity: 1; transform: none; }
+  html.no-gpu *, html.no-gpu *::before, html.no-gpu *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html.no-gpu .cursor { display: none !important; }
+  html.no-gpu::view-transition-old(root), html.no-gpu::view-transition-new(root) { animation: none; }
+</style>
 <title>Aryan Mondal</title>
 <meta name="description" content="security researcher. intrusion detection, applied cryptography, and quantum security on hardware with limited headroom." />
 <meta name="theme-color" content="#000000" />
-<link rel="icon" id="favicon" type="image/png" />
+<link rel="icon" href="favicon.png" type="image/png" />
 <link rel="prefetch" href="nids.html" as="document" />
 <link rel="prefetch" href="qkd_scada.html" as="document" />
 <link rel="prefetch" href="rhaap.html" as="document" />
@@ -54,8 +82,15 @@
      load event is exactly what gates loadShaderBackground() below -- so the
      low-priority preload was making the background arrive *later*. prefetch is
      already lowest-priority (no fetchpriority needed) and is excluded from
-     load, while still landing in the HTTP cache for the script tag. -->
-<link rel="prefetch" href="dist/shader-background.js" as="script" />
+     load, while still landing in the HTTP cache for the script tag. Added from
+     script so a browser without GPU acceleration never downloads the bundle. -->
+<script>
+  if (!window.__NO_GPU) {
+    const l = document.createElement('link');
+    l.rel = 'prefetch'; l.as = 'script'; l.href = 'dist/shader-background.js';
+    document.head.appendChild(l);
+  }
+</script>
 
 <!-- The shader bundle fetches its HDR environment maps from this origin, but
      only after it has finished parsing -- a cold handshake right at the tail of
@@ -116,12 +151,22 @@
       });
     })();
   }
-  window.addEventListener('load', () => {
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(loadShaderBackground, { timeout: 800 });
-    } else {
-      setTimeout(loadShaderBackground, 200);
-    }
+  // Arriving from another page, the idle callback landed inside the ~540ms
+  // cross-page fade and the shader's mount + first compile froze a frame for
+  // ~100ms mid-transition. Wait for the transition to finish first.
+  let pageTransition = null;
+  window.addEventListener('pagereveal', (e) => {
+    if (e.viewTransition) pageTransition = e.viewTransition.finished;
+  });
+  if (!window.__NO_GPU) window.addEventListener('load', () => {
+    // one frame on, so pagereveal has fired even when load beat first paint
+    requestAnimationFrame(() => Promise.resolve(pageTransition).catch(() => {}).then(() => {
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(loadShaderBackground, { timeout: 800 });
+      } else {
+        setTimeout(loadShaderBackground, 200);
+      }
+    }));
   });
 </script>
 
@@ -321,7 +366,6 @@
   .cursor.view {
     width: 80px; height: 80px;
     background: rgba(255,255,255,0.04);
-    backdrop-filter: blur(4px);
     border-color: rgba(255,255,255,0.65);
     box-shadow:
       0 0 16px rgba(255, 255, 255, 0.35),
@@ -1173,7 +1217,6 @@
     <li><a href="#work">work</a></li>
     <li><a href="#about">about</a></li>
     <li><a href="#contact">contact</a></li>
-    <li><a href="cv.pdf" target="_blank" rel="noopener">cv ↗</a></li>
     <li><a href="resume.pdf" target="_blank" rel="noopener">resume ↗</a></li>
     <li><a href="https://scholar.google.com/citations?user=Si4um1MAAAAJ" target="_blank" rel="noopener">scholar ↗</a></li>
   </ul>
@@ -1400,7 +1443,7 @@
   (function setupCursor() {
     cursor = document.getElementById('cursor');
     if (!cursor) return;
-    if (window.matchMedia('(hover: none)').matches) {
+    if (window.__NO_GPU || window.matchMedia('(hover: none)').matches) {
       cursor.style.display = 'none';
       return;
     }
@@ -1459,7 +1502,7 @@
       user stops actually scrolling, regardless of momentum.) */
   (function cursorScrollState() {
     const cursorEl = document.getElementById('cursor');
-    if (!cursorEl || window.matchMedia('(hover: none)').matches) return;
+    if (!cursorEl || window.__NO_GPU || window.matchMedia('(hover: none)').matches) return;
 
     let clearTimer = null;
     const IDLE_MS = 110;
@@ -1494,86 +1537,6 @@
         cursorEl.classList.remove('scrolling');
       }
     }, { passive: true });
-  })();
-
-  /* ── typography favicon: italic "a" + blinking cursor, rendered on canvas ── */
-  (function typographyFavicon() {
-    const favicon = document.getElementById('favicon');
-    if (!favicon) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = 64; canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-
-    let tick = 0;
-    let paused = false;
-    let timer = null;
-    // Each frame ends in a synchronous canvas.toDataURL('image/png') -- a full
-    // PNG encode, 14 times a second, forever. Phones never show a tab favicon,
-    // so on mobile that was ~6% of the main thread spent drawing something
-    // nobody can see. Draw one frame (bookmarks and the tab switcher still need
-    // an icon), then stop.
-    const animated = !(window.matchMedia
-      && window.matchMedia('(hover: none)').matches);
-
-    function render() {
-      // black rounded-square bg
-      ctx.clearRect(0, 0, 64, 64);
-      ctx.fillStyle = '#000';
-      ctx.beginPath();
-      const r = 12;
-      ctx.moveTo(r, 0);
-      ctx.lineTo(64 - r, 0); ctx.quadraticCurveTo(64, 0, 64, r);
-      ctx.lineTo(64, 64 - r); ctx.quadraticCurveTo(64, 64, 64 - r, 64);
-      ctx.lineTo(r, 64); ctx.quadraticCurveTo(0, 64, 0, 64 - r);
-      ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
-      ctx.closePath();
-      ctx.fill();
-
-      // italic serif "a" centered
-      ctx.fillStyle = '#fff';
-      ctx.font = 'italic 500 32px Georgia, "Times New Roman", serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('a', 32, 34);
-
-      // rotating dashed outer ring
-      ctx.save();
-      ctx.translate(32, 32);
-      ctx.rotate(tick * 0.06);
-      ctx.strokeStyle = '#fff';
-      ctx.globalAlpha = 0.55;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([3, 4]);
-      ctx.beginPath();
-      ctx.arc(0, 0, 26, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-
-      // clockwise orbiting dot
-      const a = tick * 0.09;
-      const dotX = 32 + Math.cos(a) * 26;
-      const dotY = 32 + Math.sin(a) * 26;
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(dotX, dotY, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      favicon.href = canvas.toDataURL('image/png');
-      tick++;
-      if (animated && !paused) timer = setTimeout(render, 70);
-    }
-    render();
-
-    document.addEventListener('visibilitychange', () => {
-      // Without clearing the pending timer first, returning to the tab before
-      // it fired started a second render chain alongside the old one -- every
-      // alt-tab round trip doubled the number of concurrent PNG encoders.
-      paused = document.hidden;
-      clearTimeout(timer);
-      timer = null;
-      if (animated && !paused) render();
-    });
   })();
 
   /* score HUD's `.scrolling` is now driven by the input-based detector in
@@ -1709,7 +1672,8 @@
     reel.addEventListener('pointercancel', endDrag);
   }
 
-  makeInfiniteScroller(
+  // static reel without GPU: its loop repaints the whole strip every frame
+  if (!window.__NO_GPU) makeInfiniteScroller(
     document.querySelector('.reel'),
     document.querySelector('.reel-track'),
     { autoSpeed: 0.55 }
@@ -1718,18 +1682,19 @@
   /* ── Lenis ── */
   let lenis = null;
   try {
-    if (typeof Lenis === 'function') {
+    if (typeof Lenis === 'function' && !window.__NO_GPU) {
       lenis = new Lenis({
-        duration: 1.7,
+        // wheel scrolling runs on duration + easing (lerp goes unused): 1.7s took
+        // ~0.47s to cover 90% of a notch and ~1s to stop, which read as lag
+        duration: 0.85,
         // expo-out curve — fast head, very gentle tail (silkier deceleration)
         easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -12 * t)),
         lerp: 0.10,
         smoothWheel: true,
-        syncTouch: true,
-        syncTouchLerp: 0.07,
-        touchInertiaMultiplier: 26,
+        // native touch scrolling: syncing it ran every touch scroll through the
+        // main thread, so any hitch there showed up as stutter
+        syncTouch: false,
         wheelMultiplier: 0.85,
-        touchMultiplier: 1.35,
         gestureOrientation: 'vertical',
         autoResize: true
       });
@@ -1796,6 +1761,8 @@
       }
     }
   } catch (e) { console.warn('Lenis init failed:', e); }
+  // nothing uses ScrollTrigger without a GPU, but loading it starts a rAF loop
+  if (window.__NO_GPU && window.ScrollTrigger) ScrollTrigger.disable();
 
   /* Two signals for the headline's glass pass (dist/warp-text.js), because it
      can be traced long before it stops moving:
@@ -1865,7 +1832,7 @@
     const h1 = document.querySelector('.hero-statement h1');
     const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    if (window.gsap && h1 && !reduce) {
+    if (window.gsap && h1 && !reduce && !window.__NO_GPU) {
       // without this the split spans get read out a glyph at a time
       h1.setAttribute('aria-label', h1.textContent.replace(/\s+/g, ' ').trim());
       const lines = Array.prototype.slice.call(h1.querySelectorAll('.word-line'));
@@ -1919,7 +1886,7 @@
     const SHADER_SCROLLED_OPACITY = 0.7;
     const shaderRoot = document.getElementById('shader-gradient-root');
     const heroSection = document.querySelector('.hero');
-    if (shaderRoot && heroSection) {
+    if (shaderRoot && heroSection && !window.__NO_GPU) {
       gsap.to(shaderRoot, {
         opacity: SHADER_SCROLLED_OPACITY,
         ease: 'none',
@@ -1937,7 +1904,7 @@
     // position, so stacked content (the index list, about-side blocks)
     // cascades naturally as it crosses the line, with no manual stagger to
     // keep in sync with the layout.
-    if (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (!window.__NO_GPU && (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       gsap.utils.toArray('.pop-in').forEach((el) => {
         const isHeading = /^H[1-4]$/.test(el.tagName);
         gsap.fromTo(el,
@@ -1971,7 +1938,7 @@
       (function scrollToHash() {
         if (window.lenis) {
           window.lenis.scrollTo(target, { offset: -20, duration: 1.2 });
-        } else if (performance.now() < hashDeadline) {
+        } else if (!window.__NO_GPU && performance.now() < hashDeadline) {
           requestAnimationFrame(scrollToHash);
         } else {
           target.scrollIntoView();

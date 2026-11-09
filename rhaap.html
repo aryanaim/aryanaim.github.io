@@ -4,10 +4,38 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>html,body{background:#000}::view-transition-group(root){background:#000}</style>
+<!-- Hardware acceleration off: WebGL is missing or software-rendered, so every
+     animated frame would be painted on the CPU. The page scripts skip the
+     shader, Lenis, canvases and custom cursor when window.__NO_GPU is set, and
+     the CSS below freezes the rest -- like reduced motion, but loops stop too. -->
+<script>
+window.__NO_GPU = (function () {
+  try {
+    var gl = document.createElement('canvas').getContext('webgl', { failIfMajorPerformanceCaveat: true });
+    if (!gl) return true;
+    var info = gl.getExtension('WEBGL_debug_renderer_info');
+    var renderer = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : '';
+    var lose = gl.getExtension('WEBGL_lose_context');
+    if (lose) lose.loseContext();
+    return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(renderer);
+  } catch (e) { return true; }
+})();
+if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
+</script>
+<style>
+  html.no-gpu { scroll-behavior: auto; }
+  html.no-gpu .reveal, html.no-gpu .pop-in { opacity: 1; transform: none; }
+  html.no-gpu *, html.no-gpu *::before, html.no-gpu *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html.no-gpu .cursor { display: none !important; }
+  html.no-gpu::view-transition-old(root), html.no-gpu::view-transition-new(root) { animation: none; }
+</style>
 <title>R-HAAP: UAV Swarm Authentication</title>
 <meta name="description" content="Lightweight UAV swarm authentication using ECDH, HKDF per-packet key derivation, and ChaCha20-Poly1305 AEAD. IEEE CONECCT 2026." />
 <meta name="theme-color" content="#000000" />
-<link rel="icon" id="favicon" type="image/png" />
+<link rel="icon" href="favicon.png" type="image/png" />
 
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <meta name="color-scheme" content="dark" />
@@ -806,7 +834,6 @@
     <li><a href="index.html#work">work</a></li>
     <li><a href="index.html#about">about</a></li>
     <li><a href="index.html#contact">contact</a></li>
-    <li><a href="cv.pdf" target="_blank" rel="noopener">cv ↗</a></li>
     <li><a href="resume.pdf" target="_blank" rel="noopener">resume ↗</a></li>
     <li><a href="https://scholar.google.com/citations?user=Si4um1MAAAAJ" target="_blank" rel="noopener">scholar ↗</a></li>
   </ul>
@@ -1010,7 +1037,7 @@
   (function setupCursor() {
     cursor = document.getElementById('cursor');
     if (!cursor) return;
-    if (window.matchMedia('(hover: none)').matches) { cursor.style.display = 'none'; return; }
+    if (window.__NO_GPU || window.matchMedia('(hover: none)').matches) { cursor.style.display = 'none'; return; }
     let cx = window.innerWidth / 2, cy = window.innerHeight / 2;
     let tx = cx, ty = cy;
     cursor.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`;
@@ -1057,7 +1084,7 @@
       user stops actually scrolling, regardless of momentum.) */
   (function cursorScrollState() {
     const cursorEl = document.getElementById('cursor');
-    if (!cursorEl || window.matchMedia('(hover: none)').matches) return;
+    if (!cursorEl || window.__NO_GPU || window.matchMedia('(hover: none)').matches) return;
 
     let clearTimer = null;
     const IDLE_MS = 110;
@@ -1094,93 +1121,21 @@
     }, { passive: true });
   })();
 
-  /* ── typography favicon: italic "a" + blinking cursor, rendered on canvas ── */
-  (function typographyFavicon() {
-    const favicon = document.getElementById('favicon');
-    if (!favicon) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = 64; canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-
-    let tick = 0;
-    let paused = false;
-    let timer = null;
-    // Synchronous PNG encode 14x/sec, forever, for an icon phones never
-    // show. Draw one frame, then stop. Matches index.html.
-    const animated = !(window.matchMedia
-      && window.matchMedia('(hover: none)').matches);
-
-    function render() {
-      ctx.clearRect(0, 0, 64, 64);
-      ctx.fillStyle = '#000';
-      ctx.beginPath();
-      const r = 12;
-      ctx.moveTo(r, 0);
-      ctx.lineTo(64 - r, 0); ctx.quadraticCurveTo(64, 0, 64, r);
-      ctx.lineTo(64, 64 - r); ctx.quadraticCurveTo(64, 64, 64 - r, 64);
-      ctx.lineTo(r, 64); ctx.quadraticCurveTo(0, 64, 0, 64 - r);
-      ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.fillStyle = '#fff';
-      ctx.font = 'italic 500 32px Georgia, "Times New Roman", serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('a', 32, 34);
-
-      ctx.save();
-      ctx.translate(32, 32);
-      ctx.rotate(tick * 0.06);
-      ctx.strokeStyle = '#fff';
-      ctx.globalAlpha = 0.55;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([3, 4]);
-      ctx.beginPath();
-      ctx.arc(0, 0, 26, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-
-      // clockwise orbiting dot
-      const a = tick * 0.09;
-      const dotX = 32 + Math.cos(a) * 26;
-      const dotY = 32 + Math.sin(a) * 26;
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(dotX, dotY, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      favicon.href = canvas.toDataURL('image/png');
-      tick++;
-      if (animated && !paused) timer = setTimeout(render, 70);
-    }
-    render();
-
-    document.addEventListener('visibilitychange', () => {
-      // clear the pending timer, or returning to the tab before it fires leaves
-      // two render chains running -- every alt-tab round trip doubled them.
-      paused = document.hidden;
-      clearTimeout(timer);
-      timer = null;
-      if (animated && !paused) render();
-    });
-  })();
-
   /* ── Lenis: smooth scrolling ── */
   let lenis = null;
   try {
-    if (typeof Lenis === 'function') {
+    if (typeof Lenis === 'function' && !window.__NO_GPU) {
       lenis = new Lenis({
-        duration: 1.7,
+        // wheel scrolling runs on duration + easing (lerp goes unused): 1.7s took
+        // ~0.47s to cover 90% of a notch and ~1s to stop, which read as lag
+        duration: 0.85,
         easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -12 * t)),
         lerp: 0.10,
         smoothWheel: true,
-        syncTouch: true,
-        syncTouchLerp: 0.07,
-        touchInertiaMultiplier: 26,
+        // native touch scrolling: syncing it ran every touch scroll through the
+        // main thread, so any hitch there showed up as stutter
+        syncTouch: false,
         wheelMultiplier: 0.85,
-        touchMultiplier: 1.35,
         gestureOrientation: 'vertical',
         autoResize: true
       });
@@ -1231,9 +1186,11 @@
       }
     }
   } catch (e) { console.warn('Lenis init failed:', e); }
+  // nothing uses ScrollTrigger without a GPU, but loading it starts a rAF loop
+  if (window.__NO_GPU && window.ScrollTrigger) ScrollTrigger.disable();
 
   /* ── scroll reveals for paper sections — scrub-based to match index ── */
-  if (window.gsap && window.ScrollTrigger) {
+  if (window.gsap && window.ScrollTrigger && !window.__NO_GPU) {
     gsap.utils.toArray(
       '.paper-hero h1, .paper-subtitle, .paper-meta-strip, .paper-section'
     ).forEach((el) => {

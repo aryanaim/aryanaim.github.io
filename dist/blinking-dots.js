@@ -367,7 +367,7 @@
     };
 
     // hand over from the CSS dot grid only once there is a painted frame to
-    // hand over to, the same way the shader background arrives on the home page
+    // hand over to
     const reveal = () => {
       if (revealed || disposed) return;
       revealed = true;
@@ -423,7 +423,7 @@
   /* ── wiring ── */
 
   const hosts = Array.prototype.slice.call(document.querySelectorAll('.grid-bg'));
-  if (!hosts.length) return;
+  if (!hosts.length || window.__NO_GPU) return;
 
   const reduceMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   const instances = [];
