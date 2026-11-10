@@ -28,6 +28,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   html.no-gpu *, html.no-gpu *::before, html.no-gpu *::after {
     animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    text-shadow: none !important; box-shadow: none !important; /* no glows */
   }
   html.no-gpu .cursor { display: none !important; }
   html.no-gpu::view-transition-old(root), html.no-gpu::view-transition-new(root) { animation: none; }
@@ -147,23 +148,6 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
       0 0 96px rgba(255, 255, 255, 0.04);
     animation: cursorBreath 2.4s cubic-bezier(.4,0,.6,1) infinite;
   }
-  .cursor.scrolling { animation: none; }
-  .cursor.scrolling {
-    width: 4px;
-    height: 26px;
-    background: var(--ink);
-    border-color: transparent;
-    border-radius: 999px;
-    box-shadow:
-      0   0 5px  rgba(255, 255, 255, 0.70),
-      0   0 10px rgba(255, 255, 255, 0.42),
-      0  -8px 12px rgba(255, 255, 255, 0.28),
-      0   8px 12px rgba(255, 255, 255, 0.28),
-      0 -18px 20px rgba(255, 255, 255, 0.14),
-      0  18px 20px rgba(255, 255, 255, 0.14),
-      0 -32px 28px rgba(255, 255, 255, 0.06),
-      0  32px 28px rgba(255, 255, 255, 0.06);
-  }
   @media (hover: none) {
     body, a, button, input { cursor: auto; }
     .cursor { display: none; }
@@ -189,6 +173,20 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   }
   nav .logo { color: var(--ink); text-decoration: none; font-family: var(--font-mono); font-size: 13px; opacity: .7; transition: opacity .2s; }
   nav .logo:hover { opacity: 1; }
+  /* "← back" (see backLinks in the script): same type, colour, spacing and
+     left-nudging arrow as the project pages' nav control */
+  nav .logo.back {
+    font-family: var(--font); font-size: 14px; letter-spacing: -0.014em;
+    color: var(--ink-soft); opacity: 1;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: color 200ms ease;
+  }
+  nav .logo.back:hover { color: var(--ink); }
+  [data-back] .arrow { display: inline-block; transition: transform 200ms cubic-bezier(.16,1,.3,1); }
+  @media (hover: hover) and (pointer: fine) {
+    [data-back]:hover .arrow { transform: translateX(-3px); }
+  }
+  @media (max-width: 480px) { nav .logo.back { font-size: 13px; } }
   nav ul { list-style: none; display: flex; gap: 32px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
   nav ul li a { color: var(--ink-soft); text-decoration: none; transition: color .2s; }
   nav ul li a:hover { color: var(--ink); }
@@ -206,12 +204,12 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     color: var(--ink); text-decoration: none; font-family: var(--font-mono); font-size: 13px;
     border: 1px solid var(--rule); padding: 10px 24px; border-radius: 6px;
     -webkit-tap-highlight-color: transparent;
-    transition: border-color .25s, background .25s; display: inline-block;
+    transition: border-color 200ms ease, background 200ms ease; display: inline-block;
   }
   .wip a:hover { border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.04); }
   .wip a:active {
     transform: scale(0.97);
-    transition: border-color .25s, background .25s, transform 140ms cubic-bezier(.16,1,.3,1);
+    transition: border-color 200ms ease, background 200ms ease, transform 140ms cubic-bezier(.16,1,.3,1);
   }
   @media (max-width: 640px) { nav { padding: 20px 24px; } nav ul { gap: 20px; } main { padding: 32px 24px; } }
   /* Below this the nav row ran out of width: the logo broke onto two lines and
@@ -242,11 +240,15 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   }
 
   @view-transition { navigation: auto; }
+  /* One curve for every page change and the title handoff: iOS-style, it moves
+     on the first frame and glides to a stop, ~90% there at half time, so 400ms
+     still reads as quick. (Expo-out switched the page in ~75ms, before the
+     title had started to move.) */
   ::view-transition-old(root) {
-    animation: 0.35s ease-out both vt-fade-out;
+    animation: 0.2s cubic-bezier(0.32, 0.72, 0, 1) both vt-fade-out;
   }
   ::view-transition-new(root) {
-    animation: 0.45s ease-out 0.08s both vt-fade-in;
+    animation: 0.4s cubic-bezier(0.32, 0.72, 0, 1) both vt-fade-in;
   }
   @keyframes vt-fade-out {
     to { opacity: 0; transform: scale(0.96); }
@@ -321,7 +323,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 <div class="grid-bg"></div>
 <div class="cursor" id="cursor"></div>
 <nav>
-  <a href="index.html" class="logo">Aryan Mondal</a>
+  <a href="index.html#work" class="logo back" data-back aria-label="Back to publications"><span class="arrow" aria-hidden="true">←</span>back</a>
   <ul>
     <li><a href="index.html#work">work</a></li>
     <li><a href="index.html#about">about</a></li>
@@ -335,7 +337,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     <div class="wip-code"><span>$</span> echo "under construction"</div>
     <h1>This page isn't ready yet.</h1>
     <p>Full text, figures, and citations will land here once the paper is published.</p>
-    <a href="index.html">← back to portfolio</a>
+    <a href="index.html#work" data-back><span class="arrow" aria-hidden="true">←</span> back to publications</a>
   </div>
 </main>
 <!-- Animates the .grid-bg dot field. -->
@@ -378,44 +380,33 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     });
   })();
 
-  /* ── cursor: scrolling state driven by INPUT events, not scroll position ── */
-  (function cursorScrollState() {
-    const cursorEl = document.getElementById('cursor');
-    if (!cursorEl || window.__NO_GPU || window.matchMedia('(hover: none)').matches) return;
-
-    let clearTimer = null;
-    const IDLE_MS = 110;
-    const SCROLL_KEYS = new Set([
-      'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp',
-      'Home', 'End', 'Spacebar', ' '
-    ]);
-
-    function clearNow() {
-      clearTimeout(clearTimer);
-      clearTimer = null;
-      cursorEl.classList.remove('scrolling');
-    }
-    function ping() {
-      cursorEl.classList.add('scrolling');
-      clearTimeout(clearTimer);
-      clearTimer = setTimeout(clearNow, IDLE_MS);
-    }
-
-    window.addEventListener('wheel', ping, { passive: true });
-    window.addEventListener('touchstart', ping, { passive: true });
-    window.addEventListener('touchmove', ping, { passive: true });
-    window.addEventListener('touchend', () => {
-      clearTimeout(clearTimer);
-      clearTimer = setTimeout(clearNow, IDLE_MS);
-    }, { passive: true });
-    window.addEventListener('keydown', (e) => {
-      if (SCROLL_KEYS.has(e.key)) ping();
-    });
-    window.addEventListener('pointermove', () => {
-      if (cursorEl.classList.contains('scrolling') && !clearTimer) {
-        cursorEl.classList.remove('scrolling');
+  /* ── back: every "← back" control ([data-back]) returns to the previous page
+     on this site, restoring the visitor's place in it -- history is traversed
+     rather than the link followed. In-page #hash entries (the skip link) are
+     skipped. With no such page behind us (direct visit, or arrived from
+     elsewhere) the link's own href is followed instead. */
+  (function backLinks() {
+    const links = document.querySelectorAll('a[data-back]');
+    if (!links.length) return;
+    const otherPage = (url) => {
+      try {
+        const u = new URL(url);
+        return u.origin === location.origin && u.pathname !== location.pathname;
+      } catch (e) { return false; }
+    };
+    const back = (e) => {
+      // modified clicks (new tab/window) keep plain link behaviour
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (window.navigation && navigation.currentEntry) {
+        const prev = navigation.entries().slice(0, navigation.currentEntry.index).reverse()
+          .find((entry) => otherPage(entry.url));
+        if (prev) { e.preventDefault(); navigation.traverseTo(prev.key); }
+      } else if (otherPage(document.referrer) && history.length > 1) {
+        e.preventDefault();
+        history.back();
       }
-    }, { passive: true });
+    };
+    links.forEach((a) => a.addEventListener('click', back));
   })();
 </script>
 </body>

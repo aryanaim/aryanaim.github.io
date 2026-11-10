@@ -28,6 +28,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   html.no-gpu *, html.no-gpu *::before, html.no-gpu *::after {
     animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    text-shadow: none !important; box-shadow: none !important; /* no glows */
   }
   html.no-gpu .cursor { display: none !important; }
   html.no-gpu::view-transition-old(root), html.no-gpu::view-transition-new(root) { animation: none; }
@@ -100,6 +101,32 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 <link rel="preconnect" href="https://ruucm.github.io" crossorigin />
 
 <script>
+  // Back/forward into this page with a reload (no back/forward cache): the
+  // browser restores the visitor's place, so show the page as they left it --
+  // no intro, no pop-ins replaying under the page transition. See .returning.
+  if (window.navigation && navigation.activation && navigation.activation.navigationType === 'traverse') {
+    document.documentElement.classList.add('returning');
+    // hold first render until every start-up script below has run (matters
+    // only on a reload): that start-up work then happens while the old page is
+    // still showing, and the page change starts on a quiet main thread instead
+    // of a ~60ms script landing on its first frames.
+    const expectList = document.createElement('link');
+    expectList.rel = 'expect';
+    expectList.href = '#page-end';
+    expectList.setAttribute('blocking', 'render');
+    document.head.appendChild(expectList);
+  }
+  // Back to this page from another (history, moving backwards): play the way-in
+  // zoom in reverse (.vt-back).
+  window.addEventListener('pagereveal', (e) => {
+    const act = window.navigation && navigation.activation;
+    if (!e.viewTransition || !act || act.navigationType !== 'traverse' || !act.from || !act.entry) return;
+    if (!(act.from.index > act.entry.index)) return; // Forward keeps the way-in zoom
+    if (window.__NO_GPU || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    const root = document.documentElement;
+    root.classList.add('vt-back');
+    e.viewTransition.finished.finally(() => root.classList.remove('vt-back'));
+  });
   // Purely decorative background -- execute its bundle only after the page has
   // settled instead of competing with fonts/CSS/critical scripts for
   // main-thread time during initial load. The bytes are already preloaded
@@ -151,7 +178,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
       });
     })();
   }
-  // Arriving from another page, the idle callback landed inside the ~540ms
+  // Arriving from another page, the idle callback landed inside the
   // cross-page fade and the shader's mount + first compile froze a frame for
   // ~100ms mid-transition. Wait for the transition to finish first.
   let pageTransition = null;
@@ -253,6 +280,19 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   }
   #shader-gradient-root.is-ready canvas { opacity: 1; }
 
+  /* No GPU: the shader never loads, so show the paper pages' static dot grid
+     in its place (same values as .grid-bg in nids.html). */
+  .grid-bg { display: none; }
+  html.no-gpu .grid-bg {
+    display: block;
+    position: fixed; inset: 0; z-index: 1;
+    pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.14) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+  }
+
   /* grain */
   body::before {
     content: ''; position: fixed; inset: 0;
@@ -275,9 +315,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   a {
     color: inherit;
     text-decoration: none;
-    transition:
-      color .55s cubic-bezier(.16,1,.3,1),
-      text-shadow .85s cubic-bezier(.22,.61,.36,1);
+    transition: color 200ms ease, text-shadow 200ms ease;
   }
   @keyframes linkGlow {
     0%   { text-shadow:
@@ -293,12 +331,15 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
             0 0 14px rgba(255,255,255,0.15),
             0 0 24px rgba(255,255,255,0.05); }
   }
-  a:hover {
-    text-shadow:
-      0 0 8px  rgba(255, 255, 255, 0.55),
-      0 0 18px rgba(255, 255, 255, 0.25),
-      0 0 32px rgba(255, 255, 255, 0.08);
-    animation: linkGlow 2.6s cubic-bezier(.4,0,.6,1) infinite;
+  /* real pointers only: on touch a tap leaves :hover stuck on */
+  @media (hover: hover) and (pointer: fine) {
+    a:hover {
+      text-shadow:
+        0 0 8px  rgba(255, 255, 255, 0.55),
+        0 0 18px rgba(255, 255, 255, 0.25),
+        0 0 32px rgba(255, 255, 255, 0.08);
+      animation: linkGlow 2.6s cubic-bezier(.4,0,.6,1) infinite;
+    }
   }
   /* exclusion: presented as button/logo, not a text link */
   .logo:hover { text-shadow: none; animation: none; }
@@ -359,10 +400,9 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
       0 0 96px rgba(255, 255, 255, 0.04);
     animation: cursorBreath 2.4s cubic-bezier(.4,0,.6,1) infinite;
   }
-  /* the VIEW state and scrolling-streak own box-shadow/border-color themselves;
-     suppress the breath animation so they don't fight. */
-  .cursor.view,
-  .cursor.scrolling { animation: none; }
+  /* the VIEW state owns box-shadow/border-color itself; suppress the breath
+     animation so they don't fight. */
+  .cursor.view { animation: none; }
   .cursor.view {
     width: 80px; height: 80px;
     background: rgba(255,255,255,0.04);
@@ -372,35 +412,24 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
       0 0 48px rgba(255, 255, 255, 0.15),
       0 0 96px rgba(255, 255, 255, 0.06);
   }
-  .cursor.view::after {
+  /* Rendered at all times and faded, rather than only existing in the .view
+     state: a pseudo-element that only exists in one state can't transition, so
+     the label popped in at full opacity before the ring had opened around it. */
+  .cursor::after {
     content: 'VIEW';
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
     font-family: var(--font-replica-mono); font-size: 9px;
     letter-spacing: 0.18em;
     color: var(--ink);
+    opacity: 0;
+    transition: opacity 120ms cubic-bezier(.16,1,.3,1);
+  }
+  .cursor.view::after {
+    opacity: 1;
+    transition: opacity 150ms cubic-bezier(.16,1,.3,1) 150ms;
   }
 
-  /* scrolling state — dot stretches into a thin glowing line.
-     Shadow stacks vertically so the bloom is a tall streak that
-     mirrors the line's orientation instead of a uniform oval. */
-  .cursor.scrolling {
-    width: 4px;
-    height: 26px;
-    background: var(--ink);
-    border-color: transparent;
-    border-radius: 999px;
-    box-shadow:
-      0   0 5px  rgba(255, 255, 255, 0.70),
-      0   0 10px rgba(255, 255, 255, 0.42),
-      0  -8px 12px rgba(255, 255, 255, 0.28),
-      0   8px 12px rgba(255, 255, 255, 0.28),
-      0 -18px 20px rgba(255, 255, 255, 0.14),
-      0  18px 20px rgba(255, 255, 255, 0.14),
-      0 -32px 28px rgba(255, 255, 255, 0.06),
-      0  32px 28px rgba(255, 255, 255, 0.06);
-  }
-  .cursor.scrolling.view::after { content: ''; background: none; }
   @media (hover: none) {
     body, a, button, input { cursor: auto; }
     .cursor { display: none; }
@@ -448,10 +477,9 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   nav a {
     position: relative; padding: 4px 2px;
     transition:
-      color .55s cubic-bezier(.16,1,.3,1),
-      letter-spacing .7s cubic-bezier(.16,1,.3,1),
-      text-shadow .8s cubic-bezier(.16,1,.3,1),
-      transform .65s cubic-bezier(.16,1,.3,1);
+      color 200ms ease,
+      text-shadow 200ms ease,
+      transform 200ms cubic-bezier(.16,1,.3,1);
     color: var(--ink-soft);
     display: inline-block;
   }
@@ -469,15 +497,16 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
             0 0 16px rgba(255,255,255,0.18),
             0 0 28px rgba(255,255,255,0.06); }
   }
-  nav a:hover {
-    color: var(--ink);
-    letter-spacing: 0.06em;
-    transform: translateY(-1px);
-    text-shadow:
-      0 0 8px  rgba(255,255,255,0.65),
-      0 0 18px rgba(255,255,255,0.30),
-      0 0 34px rgba(255,255,255,0.12);
-    animation: navGlow 2.4s cubic-bezier(.4,0,.6,1) infinite;
+  @media (hover: hover) and (pointer: fine) {
+    nav a:hover {
+      color: var(--ink);
+      transform: translateY(-1px);
+      text-shadow:
+        0 0 8px  rgba(255,255,255,0.65),
+        0 0 18px rgba(255,255,255,0.30),
+        0 0 34px rgba(255,255,255,0.12);
+      animation: navGlow 2.4s cubic-bezier(.4,0,.6,1) infinite;
+    }
   }
   @media (prefers-reduced-motion: reduce) {
     nav a:hover { animation: none; }
@@ -496,16 +525,17 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     display: flex; flex-direction: column; justify-content: space-between;
     position: relative;
     /* The headline warp canvas is drawn ~35px wider than the viewport on
-       each side, and the reel track runs several thousand px long. Both
-       escaped and gave the page a real horizontal scroll. clip rather than
-       hidden keeps them out of the scroll region without making .hero a
+       each side, and escaped to give the page a real horizontal scroll. clip
+       rather than hidden keeps it out of the scroll region without making .hero a
        scroll container, so the sticky rails and Lenis are untouched -- and
        the padding box is full-bleed, so nothing on screen is cropped. */
     overflow-x: clip;
   }
 
   .hero-statement {
-    margin-top: auto;
+    /* centred in the space above the scroll hint */
+    margin-block: auto;
+    text-align: center;
     position: relative;
     transform: translate(var(--parallax-x, 0), var(--parallax-y, 0));
     transition: transform 0.15s cubic-bezier(.22,.61,.36,1);
@@ -527,6 +557,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
        re-rasterizing at each intermediate scale */
     will-change: transform, opacity;
   }
+  html.no-gpu .hero-statement::before { display: none; }
   @keyframes heroGlow {
     0% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
     100% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
@@ -534,7 +565,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   .hero-statement h1 {
     font-family: var(--font-replica-regular);
     font-weight: 400;
-    font-size: clamp(30px, 5.6vw, 92px);
+    font-size: clamp(40px, 8.4vw, 148px);
     line-height: 0.96;
     letter-spacing: -0.035em;
     word-spacing: 0.08em;
@@ -570,7 +601,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     z-index: 1;
     opacity: 0;
     /* the lens tracks the window pointer, so the canvas never has to intercept
-       anything -- the reel drag and the custom cursor carry on untouched */
+       anything -- the custom cursor carries on untouched */
     pointer-events: none;
   }
   /* Swapped in one frame, never cross-faded. The two copies are identical with
@@ -590,45 +621,9 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   .word-line .w { display: inline-block; white-space: nowrap; }
   .word-line .ch { display: inline-block; transform-origin: 50% 100%; }
 
-  .reel {
-    margin-top: 28px;
-    padding: 16px 0;
-    border-top: 1px solid var(--rule);
-    border-bottom: 1px solid var(--rule);
-    position: relative;
-    overflow: hidden;
-    cursor: grab;
-    touch-action: pan-y;
-    transition: border-color 0.4s ease;
-  }
-  .reel:hover { border-color: var(--rule-2); }
-  .reel.dragging { cursor: grabbing; }
-  .reel-track {
-    display: flex; gap: 36px;
-    width: max-content;
-    font-family: var(--font-replica-regular);
-    font-weight: 400;
-    font-style: italic;
-    font-size: clamp(20px, 3.3vw, 46px);
-    line-height: 1.25;
-    letter-spacing: -0.02em;
-    color: var(--ink);
-    white-space: nowrap;
-    user-select: none;
-    will-change: transform;
-    transform: translate3d(0, 0, 0);
-  }
-  .reel-track span { display: inline-flex; align-items: center; gap: 36px; }
-  .reel-track span::after {
-    content: '✦';
-    font-size: 0.55em;
-    color: var(--ink-soft);
-    font-style: normal;
-  }
-
   .hero-foot {
     margin-top: 24px;
-    display: flex; justify-content: space-between; align-items: end; gap: 20px;
+    display: flex; justify-content: center; align-items: end; gap: 20px;
     font-family: var(--font-replica-regular);
     font-size: 11px;
     font-weight: 400;
@@ -743,11 +738,10 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   }
   .index-list li {
     border-bottom: 1px solid var(--rule);
-    transition: background .55s cubic-bezier(.16,1,.3,1), border-color .55s ease;
+    transition: background 200ms ease, border-color 200ms ease;
     position: relative;
     overflow: hidden;
-    /* the hover animates padding on a grid, which relayouts every frame for
-       600ms; keep that relayout inside the row instead of the whole document. */
+    /* keep hover repaints inside the row */
     contain: layout paint;
   }
   .index-list li::before {
@@ -758,7 +752,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     background: var(--ink);
     transform: scaleY(0);
     transform-origin: top;
-    transition: transform .6s cubic-bezier(.16,1,.3,1);
+    transition: transform 250ms cubic-bezier(.16,1,.3,1);
   }
   .index-list li::after {
     content: "";
@@ -766,23 +760,18 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     inset: 0;
     background: linear-gradient(90deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0) 60%);
     opacity: 0;
-    transition: opacity .55s cubic-bezier(.16,1,.3,1);
+    transition: opacity 200ms ease;
     pointer-events: none;
   }
-  .index-list li:hover { border-color: var(--rule-2); }
-  .index-list li:hover::before { transform: scaleY(1); transform-origin: bottom; }
-  .index-list li:hover::after { opacity: 1; }
   .index-list a {
     display: grid;
     grid-template-columns: 60px 1fr 1fr 200px 20px;
     align-items: center; gap: 28px;
     padding: 28px 8px;
     -webkit-tap-highlight-color: transparent;
-    transition: padding .6s cubic-bezier(.16,1,.3,1);
     position: relative;
     z-index: 1;
   }
-  .index-list li:hover a { padding-left: 28px; padding-right: 24px; }
   .index-list a:active {
     transform: scale(0.985);
     transition: transform 140ms cubic-bezier(.16,1,.3,1);
@@ -792,9 +781,8 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     font-family: var(--font-replica-mono); font-size: 11px; font-weight: 400;
     color: var(--ink-soft);
     letter-spacing: 0.12em;
-    transition: color .45s ease, letter-spacing .55s cubic-bezier(.16,1,.3,1);
+    transition: color 200ms ease, transform 250ms cubic-bezier(.16,1,.3,1);
   }
-  .index-list li:hover .ix { color: var(--ink); letter-spacing: 0.18em; }
   .index-list .ix-title {
     font-family: var(--font-replica-regular);
     font-weight: 400;
@@ -802,19 +790,16 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     line-height: 1.05;
     letter-spacing: -0.02em;
     color: var(--ink);
-    transition: transform .65s cubic-bezier(.16,1,.3,1), color .45s ease;
+    transition: transform 250ms cubic-bezier(.16,1,.3,1), color 200ms ease;
   }
-  .index-list .ix-title .it { font-style: italic; color: var(--ink); transition: color .45s ease; }
-  .index-list li:hover .ix-title { transform: translateX(10px); }
-  .index-list li:hover .ix-title .it { color: var(--ink); }
+  .index-list .ix-title .it { font-style: italic; color: var(--ink); transition: color 200ms ease; }
 
   .index-list .ix-tags {
     font-family: var(--font-replica-mono); font-size: 10px;
     color: var(--ink);
     text-transform: uppercase; letter-spacing: 0.14em;
-    transition: color .45s ease, transform .65s cubic-bezier(.16,1,.3,1);
+    transition: color 200ms ease, transform 250ms cubic-bezier(.16,1,.3,1);
   }
-  .index-list li:hover .ix-tags { color: var(--ink); transform: translateX(4px); }
   .index-list .ix-year {
     font-family: var(--font-replica-mono); font-size: 11px;
     color: var(--ink);
@@ -824,25 +809,35 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     align-items: baseline;
     gap: 8px;
     white-space: nowrap;
-    transition: color .45s ease, transform .65s cubic-bezier(.16,1,.3,1);
+    transition: color 200ms ease, transform 250ms cubic-bezier(.16,1,.3,1);
   }
-  .index-list li:hover .ix-year { color: var(--ink); transform: translateX(-4px); }
   .index-list .ix-venue::after {
     content: "·";
     margin-left: 8px;
     color: var(--ink-soft);
-    transition: color .45s ease;
+    transition: color 200ms ease;
   }
-  .index-list li:hover .ix-venue::after { color: var(--ink); }
-  .index-list .ix-date { color: var(--ink-soft); transition: color .45s ease; }
-  .index-list li:hover .ix-date { color: var(--ink); }
+  .index-list .ix-date { color: var(--ink-soft); transition: color 200ms ease; }
   .index-list .ix-arrow {
     font-family: var(--font-replica-mono); font-size: 14px;
     color: var(--ink);
-    transition: transform .6s cubic-bezier(.16,1,.3,1), color .35s ease, opacity .35s ease;
+    transition: transform 250ms cubic-bezier(.16,1,.3,1), color 200ms ease, opacity 200ms ease;
     text-align: right;
   }
-  .index-list li:hover .ix-arrow { transform: translateX(8px); color: var(--ink); }
+  /* transforms and color only, so a hover never relayouts the row */
+  @media (hover: hover) and (pointer: fine) {
+    .index-list li:hover { border-color: var(--rule-2); }
+    .index-list li:hover::before { transform: scaleY(1); transform-origin: bottom; }
+    .index-list li:hover::after { opacity: 1; }
+    .index-list li:hover .ix { color: var(--ink); transform: translateX(12px); }
+    .index-list li:hover .ix-title { transform: translateX(10px); }
+    .index-list li:hover .ix-title .it { color: var(--ink); }
+    .index-list li:hover .ix-tags { color: var(--ink); transform: translateX(4px); }
+    .index-list li:hover .ix-year { color: var(--ink); transform: translateX(-4px); }
+    .index-list li:hover .ix-venue::after { color: var(--ink); }
+    .index-list li:hover .ix-date { color: var(--ink); }
+    .index-list li:hover .ix-arrow { transform: translateX(8px); color: var(--ink); }
+  }
 
 
   /* ─── ABOUT ─── */
@@ -964,7 +959,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   .contact-cell a::after {
     content: '→';
     font-size: 12px;
-    transition: transform .35s cubic-bezier(.16,1,.3,1);
+    transition: transform 200ms cubic-bezier(.16,1,.3,1);
     color: var(--ink-dim);
   }
   .contact-cell a:hover { color: var(--ink); }
@@ -972,7 +967,9 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     transform: scale(0.97);
     transition: transform 140ms cubic-bezier(.16,1,.3,1);
   }
-  .contact-cell a:hover::after { transform: translateX(6px); color: var(--ink); }
+  @media (hover: hover) and (pointer: fine) {
+    .contact-cell a:hover::after { transform: translateX(6px); color: var(--ink); }
+  }
 
   .end-credit {
     position: relative;
@@ -997,25 +994,18 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
      Headings get a touch of scale overshoot on top of this same hidden state;
      the JS branches on tag name rather than a second CSS class. */
   .pop-in { opacity: 0; transform: translateY(24px); }
+  /* back/forward arrival (see <head>): already seen, so no entrance */
+  html.returning .pop-in,
+  html.returning .reveal { opacity: 1; transform: none; }
+  html.returning .word-line > span { transform: none; }
 
-  /* Fluid scroll reveal (see the --sweep driver in the interactions script).
-     A single soft-edged mask washes down through the block: 165deg so it tracks
-     reading order, and a 70%-wide feather so no part of it ever reads as an
-     edge. --sweep defaults to 1, which puts the mask fully open -- so with no
-     JS, no GSAP, or reduced motion the text is simply all there. */
-  /* typed so each per-frame write stores a number instead of re-parsing the
-     two calc() expressions in the mask from tokens */
-  @property --sweep { syntax: '<number>'; inherits: false; initial-value: 1; }
-  .fluid-reveal {
-    --sweep: 1;
-    -webkit-mask-image: linear-gradient(165deg,
-      #000 calc(var(--sweep) * 170% - 70%),
-      rgba(0, 0, 0, 0) calc(var(--sweep) * 170%));
-    mask-image: linear-gradient(165deg,
-      #000 calc(var(--sweep) * 170% - 70%),
-      rgba(0, 0, 0, 0) calc(var(--sweep) * 170%));
-  }
   /* scroll-behavior is handled by Lenis */
+  /* Going back to this page with a reload, Chrome restores the saved offset and
+     then re-aligns to a scroll anchor once it's laid out. Mid-startup that
+     re-align put the page at the very bottom for a frame (ScrollTrigger's first
+     measure caught it there) and settled 24px off. Restoring by the saved
+     offset alone is exact. */
+  html { overflow-anchor: none; }
 
   /* ─── View Transitions API ─── */
   ::view-transition {
@@ -1034,11 +1024,15 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   }
 
   @view-transition { navigation: auto; }
+  /* One curve for every page change and the title handoff: iOS-style, it moves
+     on the first frame and glides to a stop, ~90% there at half time, so 400ms
+     still reads as quick. (Expo-out switched the page in ~75ms, before the
+     title had started to move.) */
   ::view-transition-old(root) {
-    animation: 0.35s ease-out both vt-fade-out;
+    animation: 0.2s cubic-bezier(0.32, 0.72, 0, 1) both vt-fade-out;
   }
   ::view-transition-new(root) {
-    animation: 0.45s ease-out 0.08s both vt-fade-in;
+    animation: 0.4s cubic-bezier(0.32, 0.72, 0, 1) both vt-fade-in;
   }
   @keyframes vt-fade-out {
     to { opacity: 0; transform: scale(0.96); }
@@ -1046,6 +1040,12 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   @keyframes vt-fade-in {
     from { opacity: 0; transform: scale(1.04); }
   }
+  /* back from another page (pagereveal handler in <head>): the way-in zoom in
+     reverse -- the page you leave lifts toward you, home settles back */
+  html.vt-back::view-transition-old(root) { animation: 0.2s cubic-bezier(0.32, 0.72, 0, 1) both vt-back-out; }
+  html.vt-back::view-transition-new(root) { animation: 0.4s cubic-bezier(0.32, 0.72, 0, 1) both vt-back-in; }
+  @keyframes vt-back-out { to { opacity: 0; transform: scale(1.04); } }
+  @keyframes vt-back-in { from { opacity: 0; transform: scale(0.96); } }
 
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
@@ -1080,7 +1080,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     .about { grid-template-columns: 1fr; gap: 32px 0; padding-top: 100px; }
     .about > .section-label, .with-rail > .section-label { position: static; }
     .with-rail { grid-template-columns: 1fr; gap: 32px; }
-    .hero-foot { flex-direction: column; gap: 14px; align-items: flex-start; }
+    .hero-foot { flex-direction: column; gap: 14px; align-items: center; }
     .contact-grid { grid-template-columns: 1fr 1fr; gap: 28px; }
     body { cursor: auto; }
     .cursor { display: none; }
@@ -1093,7 +1093,6 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     .index-list .ix-tags  { grid-column: 2; grid-row: 2; }
     .index-list .ix-year  { grid-column: 2; grid-row: 3; justify-content: flex-start; }
     .index-list .ix-arrow { display: none; }
-    .index-list li:hover a { padding-left: 8px; padding-right: 8px; }
   }
 
   /* Small mobile (480px and down) */
@@ -1104,8 +1103,6 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     .hero { padding: 24px 16px 36px; min-height: calc(100vh - 60px); min-height: calc(100svh - 60px); }
     .projects, .about, .contact, .manifesto { padding-left: 16px; padding-right: 16px; }
     .manifesto { padding-top: 80px; padding-bottom: 80px; }
-    .reel-track { font-size: clamp(18px, 5.5vw, 32px); gap: 28px; }
-    .reel-track span { gap: 28px; }
     .hero-foot { font-size: 10px; }
     .projects-head h2, .contact h2 { font-size: clamp(36px, 11vw, 64px); }
     .about-text h3 { font-size: clamp(26px, 7.5vw, 40px); }
@@ -1209,6 +1206,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 <a class="skip-link" href="#main">skip to content</a>
 
 <div id="shader-gradient-root"></div>
+<div class="grid-bg" aria-hidden="true"></div>
 <div class="cursor" id="cursor"></div>
 
 <nav>
@@ -1234,25 +1232,10 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
         <span class="word-line"><span>building systems</span></span>
       </h1>
     </div>
+  </div>
 
-    <div class="reel reveal" aria-hidden="true">
-      <div class="reel-track">
-        <span>intrusion detection</span>
-        <span>applied cryptography</span>
-        <span>quantum security</span>
-        <span>UAV authentication</span>
-        <span>edge defense</span>
-        <span>intrusion detection</span>
-        <span>applied cryptography</span>
-        <span>quantum security</span>
-        <span>UAV authentication</span>
-        <span>edge defense</span>
-      </div>
-    </div>
-
-    <div class="hero-foot reveal">
-      <a class="scroll-hint" href="#work">selected work <span class="arrow" aria-hidden="true"><svg viewBox="0 0 10 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 1 V18 M1.5 14.5 L5 18 L8.5 14.5" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
-    </div>
+  <div class="hero-foot reveal">
+    <a class="scroll-hint" href="#work">selected work <span class="arrow" aria-hidden="true"><svg viewBox="0 0 10 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 1 V18 M1.5 14.5 L5 18 L8.5 14.5" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
   </div>
 </section>
 
@@ -1260,7 +1243,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 <section class="manifesto with-rail">
   <div class="section-label">manifesto</div>
   <div class="rail-content">
-    <p id="manifesto-body" class="fluid-reveal pop-in">
+    <p id="manifesto-body" class="pop-in">
       Most of my work is about getting real security guarantees on hardware that wasn't built for it. A network IDS small enough to run on IoT-class devices. An authentication scheme for UAV swarms that finishes before the radio timeout. QKD control loops for industrial infrastructure. Different environments, same problem: limited compute, real attack surface, and an architecture that has to actually work.
     </p>
   </div>
@@ -1271,8 +1254,8 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   <div class="section-label pop-in">work</div>
   <div class="rail-content">
   <div class="projects-head">
-    <h2 class="fluid-reveal pop-in">Selected research<br />&amp; publications</h2>
-    <p class="projects-lede fluid-reveal pop-in">
+    <h2 class="pop-in">Selected research<br />&amp; publications</h2>
+    <p class="projects-lede pop-in">
       five pieces across <span class="it">network intrusion detection</span>, <span class="it">applied cryptography</span>, and <span class="it">quantum security</span>: peer-reviewed venues and working prototypes.
     </p>
   </div>
@@ -1372,7 +1355,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 <section class="contact with-rail" id="contact">
   <div class="section-label pop-in">contact</div>
   <div class="rail-content">
-    <h2 class="fluid-reveal pop-in">
+    <h2 class="pop-in">
       why don't you<br />
       come say <span class="it"><a href="mailto:aryanmondal@umass.edu">hi</a></span>
     </h2>
@@ -1416,7 +1399,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 <script>
   // subtle parallax on hero statement
   const heroStatement = document.querySelector('.hero-statement');
-  if (heroStatement) {
+  if (heroStatement && !window.__NO_GPU) {
     // mousemove fires several times per displayed frame, and every write here
     // restarts the 0.15s transform transition on a ~50-node subtree. Coalesce
     // to one write per frame; amplitude and easing are unchanged.
@@ -1496,188 +1479,8 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     });
   })();
 
-  /* ── cursor: scrolling state driven by INPUT events, not scroll position ──
-     (Lenis keeps emitting scroll events during its lerp tail; we instead
-      key off wheel/touch/keyboard so the cursor reverts the instant the
-      user stops actually scrolling, regardless of momentum.) */
-  (function cursorScrollState() {
-    const cursorEl = document.getElementById('cursor');
-    if (!cursorEl || window.__NO_GPU || window.matchMedia('(hover: none)').matches) return;
-
-    let clearTimer = null;
-    const IDLE_MS = 110;
-    const SCROLL_KEYS = new Set([
-      'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp',
-      'Home', 'End', 'Spacebar', ' '
-    ]);
-
-    function clearNow() {
-      clearTimeout(clearTimer);
-      clearTimer = null;
-      cursorEl.classList.remove('scrolling');
-    }
-    function ping() {
-      cursorEl.classList.add('scrolling');
-      clearTimeout(clearTimer);
-      clearTimer = setTimeout(clearNow, IDLE_MS);
-    }
-
-    window.addEventListener('wheel', ping, { passive: true });
-    window.addEventListener('touchstart', ping, { passive: true });
-    window.addEventListener('touchmove', ping, { passive: true });
-    window.addEventListener('touchend', () => {
-      clearTimeout(clearTimer);
-      clearTimer = setTimeout(clearNow, IDLE_MS);
-    }, { passive: true });
-    window.addEventListener('keydown', (e) => {
-      if (SCROLL_KEYS.has(e.key)) ping();
-    });
-    window.addEventListener('pointermove', () => {
-      if (cursorEl.classList.contains('scrolling') && !clearTimer) {
-        cursorEl.classList.remove('scrolling');
-      }
-    }, { passive: true });
-  })();
-
-  /* score HUD's `.scrolling` is now driven by the input-based detector in
-     cursorScrollState, so it ignores Lenis's momentum tail and unhides
-     the moment real wheel/touch input stops. */
 
 
-  /* ── infinite both-way marquee scroller, lerped + flickable ── */
-  function makeInfiniteScroller(reel, track, opts = {}) {
-    if (!reel || !track) return;
-    const autoSpeed = opts.autoSpeed ?? 0.55;
-    const smoothing = opts.smoothing ?? 0.22;
-    const inertiaDecay = opts.inertiaDecay ?? 0.94;
-    let halfWidth = 0;
-    let targetX = 0;
-    let virtualX = 0;
-    let inertia = 0;
-    let last = performance.now();
-    let dragging = false;
-    let startClientX = 0;
-    let startTarget = 0;
-    let lastMoveX = 0;
-    let lastMoveT = 0;
-    let releaseVel = 0;
-
-    function measure() { halfWidth = track.scrollWidth / 2; }
-    measure();
-    // measure() reads scrollWidth (forced layout); resize fires dozens of times
-    // per second during a window drag, and ResizeObserver re-fires on top of it.
-    let resizeTimer;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(measure, 150);
-    }, { passive: true });
-    if (window.ResizeObserver) {
-      const ro = new ResizeObserver(measure);
-      ro.observe(track);
-    }
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
-    setTimeout(measure, 400);
-
-    // The reel lives in the hero; without this it kept lerping and writing a
-    // transform on every frame of every scroll, long after it left the screen.
-    let onScreen = true;
-    if (window.IntersectionObserver) {
-      new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; },
-        { rootMargin: '200px' }).observe(reel);
-    }
-
-    function tick() {
-      const now = performance.now();
-      const dt = Math.min(now - last, 48);
-      last = now;
-      if (!onScreen) return;
-      const k = dt / 16;
-
-      if (halfWidth <= 0) measure();
-
-      if (!dragging) {
-        targetX += autoSpeed * k;
-        if (Math.abs(inertia) > 0.02) {
-          targetX += inertia * k;
-          inertia *= Math.pow(inertiaDecay, k);
-        } else {
-          inertia = 0;
-        }
-      }
-
-      const s = 1 - Math.pow(1 - smoothing, k);
-      virtualX += (targetX - virtualX) * s;
-
-      if (halfWidth > 0 && Math.abs(virtualX) > halfWidth * 50) {
-        const wraps = Math.floor(virtualX / halfWidth) * halfWidth;
-        virtualX -= wraps;
-        targetX -= wraps;
-      }
-
-      const displayX = halfWidth > 0
-        ? ((virtualX % halfWidth) + halfWidth) % halfWidth
-        : 0;
-      track.style.transform = `translate3d(${-displayX.toFixed(3)}px, 0, 0)`;
-    }
-    if (window.gsap) {
-      gsap.ticker.add(tick);
-    } else {
-      (function raf() { tick(); requestAnimationFrame(raf); })();
-    }
-
-    reel.addEventListener('wheel', (e) => {
-      // Only hijack genuinely horizontal gestures. The old ternary fell back to
-      // deltaY, so a plain vertical wheel was preventDefault()ed and fed into
-      // the marquee -- the page could not scroll at all over the reel.
-      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      targetX += e.deltaX;
-      inertia = inertia * 0.5 + e.deltaX * 0.18;
-    }, { passive: false });
-
-    reel.addEventListener('pointerdown', (e) => {
-      dragging = true;
-      inertia = 0;
-      startClientX = e.clientX;
-      startTarget = targetX;
-      lastMoveX = e.clientX;
-      lastMoveT = performance.now();
-      releaseVel = 0;
-      reel.classList.add('dragging');
-      try { reel.setPointerCapture(e.pointerId); } catch (_) {}
-    });
-
-    reel.addEventListener('pointermove', (e) => {
-      if (!dragging) return;
-      const now = performance.now();
-      const dxPx = e.clientX - lastMoveX;
-      const dtMs = Math.max(1, now - lastMoveT);
-      releaseVel = -dxPx * (16 / dtMs);
-      lastMoveX = e.clientX;
-      lastMoveT = now;
-      targetX = startTarget - (e.clientX - startClientX);
-      virtualX = targetX;
-    });
-
-    function endDrag(e) {
-      if (!dragging) return;
-      dragging = false;
-      inertia = Math.max(-80, Math.min(80, releaseVel));
-      releaseVel = 0;
-      reel.classList.remove('dragging');
-      try { reel.releasePointerCapture(e.pointerId); } catch (_) {}
-    }
-    reel.addEventListener('pointerup', endDrag);
-    reel.addEventListener('pointercancel', endDrag);
-  }
-
-  // static reel without GPU: its loop repaints the whole strip every frame
-  if (!window.__NO_GPU) makeInfiniteScroller(
-    document.querySelector('.reel'),
-    document.querySelector('.reel-track'),
-    { autoSpeed: 0.55 }
-  );
 
   /* ── Lenis ── */
   let lenis = null;
@@ -1861,9 +1664,9 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
       };
       const tl = gsap.timeline({ defaults: { ease: 'expo.out' }, onComplete: land });
       tl.to(chars, { yPercent: 0, opacity: 1, duration: 0.85, stagger: wave }, 0.05)
-        // the overshoot lives here and not in y: .word-line clips top and bottom,
-        // so a glyph overshooting above y:0 would have its head cut off
-        .to(chars, { rotateX: 0, duration: 1.05, ease: 'back.out(1.7)', stagger: wave }, 0.05)
+        // the flip settles on the same expo-out as the rise: no overshoot past
+        // upright, so the letters land without a bounce
+        .to(chars, { rotateX: 0, duration: 1.05, stagger: wave }, 0.05)
         .to(lines, { letterSpacing: '-0.035em', duration: 1.1, stagger: 0.09, ease: 'power2.out' }, 0.15)
         .to('.reveal', { opacity: 1, y: 0, duration: 1.0, stagger: 0.06, ease: 'power3.out' }, 0.55);
     } else {
@@ -1904,7 +1707,8 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     // position, so stacked content (the index list, about-side blocks)
     // cascades naturally as it crosses the line, with no manual stagger to
     // keep in sync with the layout.
-    if (!window.__NO_GPU && (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+    if (!window.__NO_GPU && !document.documentElement.classList.contains('returning')
+        && (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       gsap.utils.toArray('.pop-in').forEach((el) => {
         const isHeading = /^H[1-4]$/.test(el.tagName);
         gsap.fromTo(el,
@@ -1927,7 +1731,10 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   // If loaded from a cross-page hash (e.g. nids.html → index.html#work),
   // skip the hero intro, reveal everything, and smooth-scroll to the section.
   const hash = window.location.hash;
-  if (hash && hash !== '#') {
+  if (document.documentElement.classList.contains('returning')) {
+    // the browser has put the visitor back where they were; just settle the hero
+    heroSettled();
+  } else if (hash && hash !== '#') {
     document.querySelectorAll('.word-line > span').forEach(s => s.style.transform = 'none');
     document.querySelectorAll('.reveal').forEach(s => { s.style.opacity = 1; s.style.transform = 'none'; });
     heroSettled();
@@ -1950,5 +1757,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   }
 </script>
 
+<!-- end of the start-up scripts: see expectList in <head> -->
+<span id="page-end" hidden></span>
 </body>
 </html>

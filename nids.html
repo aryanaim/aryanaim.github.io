@@ -28,10 +28,22 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   html.no-gpu *, html.no-gpu *::before, html.no-gpu *::after {
     animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    text-shadow: none !important; box-shadow: none !important; /* no glows */
   }
   html.no-gpu .cursor { display: none !important; }
   html.no-gpu::view-transition-old(root), html.no-gpu::view-transition-new(root) { animation: none; }
 </style>
+<script>
+// Resolves once this page has finished arriving: at once, or when the page
+// transition into it ends. Start-up that would add motion of its own under
+// that transition (the dot field) waits for it.
+window.__arrived = new Promise(function (done) {
+  if (!('onpagereveal' in window)) return done();
+  addEventListener('pagereveal', function (e) {
+    if (e.viewTransition) e.viewTransition.finished.then(done, done); else done();
+  }, { once: true });
+});
+</script>
 <title>Lightweight Hybrid DNN-GNN NIDS</title>
 <meta name="description" content="Lightweight hybrid DNN-GNN architecture for network intrusion detection with adaptive late fusion. ICNWC 2026." />
 <meta name="theme-color" content="#000000" />
@@ -133,9 +145,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   a {
     color: inherit;
     text-decoration: none;
-    transition:
-      color .55s cubic-bezier(.16,1,.3,1),
-      text-shadow .85s cubic-bezier(.22,.61,.36,1);
+    transition: color 200ms ease, text-shadow 200ms ease;
   }
   @keyframes linkGlow {
     0%   { text-shadow:
@@ -151,12 +161,15 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
             0 0 14px rgba(255,255,255,0.15),
             0 0 24px rgba(255,255,255,0.05); }
   }
-  a:hover {
-    text-shadow:
-      0 0 8px  rgba(255, 255, 255, 0.55),
-      0 0 18px rgba(255, 255, 255, 0.25),
-      0 0 32px rgba(255, 255, 255, 0.08);
-    animation: linkGlow 2.6s cubic-bezier(.4,0,.6,1) infinite;
+  /* real pointers only: on touch a tap leaves :hover stuck on */
+  @media (hover: hover) and (pointer: fine) {
+    a:hover {
+      text-shadow:
+        0 0 8px  rgba(255, 255, 255, 0.55),
+        0 0 18px rgba(255, 255, 255, 0.25),
+        0 0 32px rgba(255, 255, 255, 0.08);
+      animation: linkGlow 2.6s cubic-bezier(.4,0,.6,1) infinite;
+    }
   }
   .logo:hover,
   .cta:hover { text-shadow: none; animation: none; }
@@ -220,23 +233,6 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
       0 0 96px rgba(255, 255, 255, 0.04);
     animation: cursorBreath 2.4s cubic-bezier(.4,0,.6,1) infinite;
   }
-  .cursor.scrolling { animation: none; }
-  .cursor.scrolling {
-    width: 4px;
-    height: 26px;
-    background: var(--ink);
-    border-color: transparent;
-    border-radius: 999px;
-    box-shadow:
-      0   0 5px  rgba(255, 255, 255, 0.70),
-      0   0 10px rgba(255, 255, 255, 0.42),
-      0  -8px 12px rgba(255, 255, 255, 0.28),
-      0   8px 12px rgba(255, 255, 255, 0.28),
-      0 -18px 20px rgba(255, 255, 255, 0.14),
-      0  18px 20px rgba(255, 255, 255, 0.14),
-      0 -32px 28px rgba(255, 255, 255, 0.06),
-      0  32px 28px rgba(255, 255, 255, 0.06);
-  }
   @media (hover: none) {
     body, a, button, input { cursor: auto; }
     .cursor { display: none; }
@@ -269,11 +265,15 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   }
 
   @view-transition { navigation: auto; }
+  /* One curve for every page change and the title handoff: iOS-style, it moves
+     on the first frame and glides to a stop, ~90% there at half time, so 400ms
+     still reads as quick. (Expo-out switched the page in ~75ms, before the
+     title had started to move.) */
   ::view-transition-old(root) {
-    animation: 0.35s ease-out both vt-fade-out;
+    animation: 0.2s cubic-bezier(0.32, 0.72, 0, 1) both vt-fade-out;
   }
   ::view-transition-new(root) {
-    animation: 0.45s ease-out 0.08s both vt-fade-in;
+    animation: 0.4s cubic-bezier(0.32, 0.72, 0, 1) both vt-fade-in;
   }
   @keyframes vt-fade-out {
     to { opacity: 0; transform: scale(0.96); }
@@ -360,14 +360,19 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     letter-spacing: -0.014em;
     display: inline-flex; align-items: center; gap: 10px;
   }
+  /* "← back" in the nav (see backLinks in the script) */
+  nav .back { gap: 8px; }
+  nav .back .arrow { display: inline-block; transition: transform 200ms cubic-bezier(.16,1,.3,1); }
+  @media (hover: hover) and (pointer: fine) {
+    nav .back:hover .arrow { transform: translateX(-3px); }
+  }
   nav ul { display: flex; gap: 30px; list-style: none; flex-wrap: wrap; justify-content: flex-end; }
   nav a {
     position: relative; padding: 4px 2px;
     transition:
-      color .55s cubic-bezier(.16,1,.3,1),
-      letter-spacing .7s cubic-bezier(.16,1,.3,1),
-      text-shadow .8s cubic-bezier(.16,1,.3,1),
-      transform .65s cubic-bezier(.16,1,.3,1);
+      color 200ms ease,
+      text-shadow 200ms ease,
+      transform 200ms cubic-bezier(.16,1,.3,1);
     color: var(--ink-soft);
     display: inline-block;
   }
@@ -385,15 +390,16 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
             0 0 16px rgba(255,255,255,0.18),
             0 0 28px rgba(255,255,255,0.06); }
   }
-  nav a:hover {
-    color: var(--ink);
-    letter-spacing: 0.06em;
-    transform: translateY(-1px);
-    text-shadow:
-      0 0 8px  rgba(255,255,255,0.65),
-      0 0 18px rgba(255,255,255,0.30),
-      0 0 34px rgba(255,255,255,0.12);
-    animation: navGlow 2.4s cubic-bezier(.4,0,.6,1) infinite;
+  @media (hover: hover) and (pointer: fine) {
+    nav a:hover {
+      color: var(--ink);
+      transform: translateY(-1px);
+      text-shadow:
+        0 0 8px  rgba(255,255,255,0.65),
+        0 0 18px rgba(255,255,255,0.30),
+        0 0 34px rgba(255,255,255,0.12);
+      animation: navGlow 2.4s cubic-bezier(.4,0,.6,1) infinite;
+    }
   }
   @media (prefers-reduced-motion: reduce) {
     nav a:hover { animation: none; }
@@ -533,15 +539,17 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     font-family: var(--font-replica-mono); font-size: 10px;
     color: var(--ink-soft);
     text-transform: uppercase; letter-spacing: 0.14em;
-    transition: color .4s ease, border-color .55s ease,
-                background .55s cubic-bezier(.16,1,.3,1),
-                transform .55s cubic-bezier(.16,1,.3,1);
+    transition: color 200ms ease, border-color 200ms ease,
+                background 200ms ease,
+                transform 200ms cubic-bezier(.16,1,.3,1);
   }
-  .keyword-list .kw:hover {
-    color: var(--ink);
-    border-color: var(--rule-2);
-    background: rgba(255,255,255,0.04);
-    transform: translateY(-2px);
+  @media (hover: hover) and (pointer: fine) {
+    .keyword-list .kw:hover {
+      color: var(--ink);
+      border-color: var(--rule-2);
+      background: rgba(255,255,255,0.04);
+      transform: translateY(-2px);
+    }
   }
 
   /* highlights */
@@ -637,12 +645,11 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     text-transform: uppercase; letter-spacing: 0.16em;
     background: rgba(255,255,255,0.02);
     -webkit-tap-highlight-color: transparent;
-    transition: background .55s cubic-bezier(.16,1,.3,1),
-                color .45s ease,
-                border-color .55s ease,
-                transform .55s cubic-bezier(.16,1,.3,1),
-                letter-spacing .55s cubic-bezier(.16,1,.3,1),
-                box-shadow .55s ease;
+    transition: background 200ms ease,
+                color 200ms ease,
+                border-color 200ms ease,
+                transform 200ms cubic-bezier(.16,1,.3,1),
+                box-shadow 200ms ease;
   }
   /* Both label strings sit stacked in the same grid cell, so the cell (and
      therefore the button) is always sized to the wider of the two -- the
@@ -653,26 +660,33 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   .copy-bib .label-swap .label-done { opacity: 0; }
   .copy-bib.is-copied .label-swap .label-idle { opacity: 0; }
   .copy-bib.is-copied .label-swap .label-done { opacity: 1; }
-  .cta:hover {
-    background: var(--ink); color: var(--bg); border-color: var(--ink);
-    transform: translateY(-2px);
-    letter-spacing: 0.2em;
-    box-shadow: 0 12px 30px rgba(255,255,255,0.08);
+  @media (hover: hover) and (pointer: fine) {
+    .cta:hover {
+      background: var(--ink); color: var(--bg); border-color: var(--ink);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(255,255,255,0.08);
+    }
   }
   .cta:active {
     transform: translateY(-2px) scale(0.97);
     transition: transform 140ms cubic-bezier(.16,1,.3,1);
   }
-  .cta .arrow { transition: transform .6s cubic-bezier(.16,1,.3,1); display: inline-block; }
-  .cta:hover .arrow { transform: translateX(8px); }
+  .cta .arrow { transition: transform 250ms cubic-bezier(.16,1,.3,1); display: inline-block; }
+  @media (hover: hover) and (pointer: fine) {
+    .cta:hover .arrow { transform: translateX(8px); }
+    /* back arrows nudge the way they point */
+    .cta[data-back]:hover .arrow { transform: translateX(-8px); }
+  }
   .cta.ghost {
     background: transparent;
     color: var(--ink-soft);
   }
-  .cta.ghost:hover {
-    background: rgba(255,255,255,0.04);
-    color: var(--ink);
-    border-color: var(--rule-2);
+  @media (hover: hover) and (pointer: fine) {
+    .cta.ghost:hover {
+      background: rgba(255,255,255,0.04);
+      color: var(--ink);
+      border-color: var(--rule-2);
+    }
   }
 
   .end-credit {
@@ -829,7 +843,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 <div class="cursor" id="cursor"></div>
 
 <nav>
-  <a href="index.html" class="logo">Aryan Mondal</a>
+  <a href="index.html#work" class="logo back" data-back aria-label="Back to publications"><span class="arrow" aria-hidden="true">←</span>back</a>
   <ul>
     <li><a href="index.html#work">work</a></li>
     <li><a href="index.html#about">about</a></li>
@@ -1010,8 +1024,8 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
           <a class="cta ghost" href="https://doi.org/10.1109/ICNWC68145.2026.11518522" target="_blank" rel="noopener">
             resolve via DOI <span class="arrow">↗</span>
           </a>
-          <a class="cta ghost" href="index.html#work">
-            <span class="arrow">←</span> back to publications
+          <a class="cta ghost" href="index.html#work" data-back>
+            <span class="arrow" aria-hidden="true">←</span> back to publications
           </a>
         </div>
       </div>
@@ -1081,47 +1095,33 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     });
   })();
 
-  /* ── cursor: scrolling state driven by INPUT events, not scroll position ──
-     (Lenis keeps emitting scroll events during its lerp tail; we instead
-      key off wheel/touch/keyboard so the cursor reverts the instant the
-      user stops actually scrolling, regardless of momentum.) */
-  (function cursorScrollState() {
-    const cursorEl = document.getElementById('cursor');
-    if (!cursorEl || window.__NO_GPU || window.matchMedia('(hover: none)').matches) return;
-
-    let clearTimer = null;
-    const IDLE_MS = 110;
-    const SCROLL_KEYS = new Set([
-      'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp',
-      'Home', 'End', 'Spacebar', ' '
-    ]);
-
-    function clearNow() {
-      clearTimeout(clearTimer);
-      clearTimer = null;
-      cursorEl.classList.remove('scrolling');
-    }
-    function ping() {
-      cursorEl.classList.add('scrolling');
-      clearTimeout(clearTimer);
-      clearTimer = setTimeout(clearNow, IDLE_MS);
-    }
-
-    window.addEventListener('wheel', ping, { passive: true });
-    window.addEventListener('touchstart', ping, { passive: true });
-    window.addEventListener('touchmove', ping, { passive: true });
-    window.addEventListener('touchend', () => {
-      clearTimeout(clearTimer);
-      clearTimer = setTimeout(clearNow, IDLE_MS);
-    }, { passive: true });
-    window.addEventListener('keydown', (e) => {
-      if (SCROLL_KEYS.has(e.key)) ping();
-    });
-    window.addEventListener('pointermove', () => {
-      if (cursorEl.classList.contains('scrolling') && !clearTimer) {
-        cursorEl.classList.remove('scrolling');
+  /* ── back: every "← back" control ([data-back]) returns to the previous page
+     on this site, restoring the visitor's place in it -- history is traversed
+     rather than the link followed. In-page #hash entries (the skip link) are
+     skipped. With no such page behind us (direct visit, or arrived from
+     elsewhere) the link's own href is followed instead. */
+  (function backLinks() {
+    const links = document.querySelectorAll('a[data-back]');
+    if (!links.length) return;
+    const otherPage = (url) => {
+      try {
+        const u = new URL(url);
+        return u.origin === location.origin && u.pathname !== location.pathname;
+      } catch (e) { return false; }
+    };
+    const back = (e) => {
+      // modified clicks (new tab/window) keep plain link behaviour
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (window.navigation && navigation.currentEntry) {
+        const prev = navigation.entries().slice(0, navigation.currentEntry.index).reverse()
+          .find((entry) => otherPage(entry.url));
+        if (prev) { e.preventDefault(); navigation.traverseTo(prev.key); }
+      } else if (otherPage(document.referrer) && history.length > 1) {
+        e.preventDefault();
+        history.back();
       }
-    }, { passive: true });
+    };
+    links.forEach((a) => a.addEventListener('click', back));
   })();
 
   /* ── Lenis: smooth scrolling ── */
@@ -1192,21 +1192,31 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   // nothing uses ScrollTrigger without a GPU, but loading it starts a rAF loop
   if (window.__NO_GPU && window.ScrollTrigger) ScrollTrigger.disable();
 
-  /* ── scroll reveals for paper sections — scrub-based to match index ── */
-  if (window.gsap && window.ScrollTrigger && !window.__NO_GPU) {
+  /* ── scroll reveals for paper sections — one-shot, to match index ── */
+  if (window.gsap && window.ScrollTrigger && !window.__NO_GPU
+      && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+    const fromSite = window.navigation && navigation.activation && navigation.activation.from;
+    const arrivedFromSite = !!fromSite && new URL(fromSite.url).origin === location.origin;
     gsap.utils.toArray(
       '.paper-hero h1, .paper-subtitle, .paper-meta-strip, .paper-section'
-    ).forEach((el) => {
+    )
+    // arriving from another page on the site, the page transition already
+    // brings in what's on screen; revealing it again would be a second motion
+    // under the first
+    .filter((el) => !(arrivedFromSite && el.getBoundingClientRect().top < innerHeight))
+    .forEach((el) => {
+      // played once rather than scrubbed: scrubbing tied opacity to scroll, so
+      // text in the lower half of the screen stayed half-transparent as you read
       gsap.fromTo(el,
-        { y: 36, opacity: 0 },
+        { y: 24, opacity: 0 },
         {
           y: 0, opacity: 1,
-          ease: 'power2.out',
+          duration: 0.6,
+          ease: 'power3.out',
           scrollTrigger: {
             trigger: el,
             start: 'top 88%',
-            end: 'clamp(top 38%)',
-            scrub: 0.6,
+            toggleActions: 'play none none none',
           }
         }
       );

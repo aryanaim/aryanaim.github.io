@@ -443,5 +443,8 @@
   };
 
   if (reduceMotion && reduceMotion.addEventListener) reduceMotion.addEventListener('change', apply);
-  apply();
+  // wait for the page transition into this page to finish (see __arrived in
+  // the project pages' <head>): the field's mount and fade-in would otherwise
+  // run underneath it
+  (window.__arrived || Promise.resolve()).then(apply);
 })();
