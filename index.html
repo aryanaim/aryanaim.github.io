@@ -980,7 +980,6 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     .contact h2 .hi-arrow { clip-path: none; opacity: 0; transition: opacity 300ms ease 300ms; }
     .contact h2 .is-on .hi-arrow { opacity: 1; }
   }
-
   .contact-note {
     margin-top: 40px;
     max-width: 560px;
@@ -1811,6 +1810,12 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     splitHeadline(label).forEach((ch, i) => ch.style.setProperty('--i', i));
   });
 
+  // a hello for whoever opens DevTools
+  console.log(String.raw`%c /\_/\
+( o.o )   poking around? respect.
+ > ^ <    found a bug? mail aryanmondal@umass.edu
+          PGP key: ${new URL('publickey.asc', location.href).href}`,
+    'font: 12px/1.5 monospace; color: #f0a35e');
   // If loaded from a cross-page hash (e.g. nids.html → index.html#work),
   // skip the hero intro, reveal everything, and smooth-scroll to the section.
   const hash = window.location.hash;

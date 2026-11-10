@@ -692,6 +692,14 @@ if (!window.__NO_GPU) {
   .copy-bib .label-swap .label-done { opacity: 0; }
   .copy-bib.is-copied .label-swap .label-idle { opacity: 0; }
   .copy-bib.is-copied .label-swap .label-done { opacity: 1; }
+  /* on copy, the block itself flashes once, so it reads as what was copied */
+  .bibtex { position: relative; }
+  .bibtex::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit;
+    background: rgba(255,255,255,0.06); opacity: 0; pointer-events: none;
+  }
+  .paper-section:has(.copy-bib.is-copied) .bibtex::after { animation: bibFlash 700ms cubic-bezier(.16,1,.3,1); }
+  @keyframes bibFlash { from { opacity: 1; } to { opacity: 0; } }
   @media (hover: hover) and (pointer: fine) {
     .cta:hover {
       background: var(--ink); color: var(--bg); border-color: var(--ink);
@@ -1248,6 +1256,13 @@ if (!window.__NO_GPU) {
     // refresh once Lenis is fully wired so trigger positions are accurate
     setTimeout(() => ScrollTrigger.refresh(), 80);
   }
+
+  // a hello for whoever opens DevTools (same as index.html)
+  console.log(String.raw`%c /\_/\
+( o.o )   poking around? respect.
+ > ^ <    found a bug? mail aryanmondal@umass.edu
+          PGP key: ${new URL('publickey.asc', location.href).href}`,
+    'font: 12px/1.5 monospace; color: #f0a35e');
 
   /* -- copy BibTeX -- */
   document.querySelectorAll('.copy-bib').forEach((btn) => {
