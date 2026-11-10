@@ -36,13 +36,47 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 <script>
 // Resolves once this page has finished arriving: at once, or when the page
 // transition into it ends. Start-up that would add motion of its own under
-// that transition (the dot field) waits for it.
+// that transition (the shader background) waits for it.
 window.__arrived = new Promise(function (done) {
   if (!('onpagereveal' in window)) return done();
   addEventListener('pagereveal', function (e) {
     if (e.viewTransition) e.viewTransition.finished.then(done, done); else done();
   }, { once: true });
 });
+</script>
+<script>
+// Decorative shader background: the same bundle and phone settings as
+// index.html (the reasoning is there). Runs once the page has loaded and the
+// transition into it has finished, then fades in over the painted page.
+if (!window.__NO_GPU) {
+  if (matchMedia('(hover: none)').matches) {
+    window.__SG_OVERRIDE = { grain: 'off', lightType: '3d' };
+    window.__SG_DPR = 0.5;
+    window.__SG_INTERVAL = 1500;
+  }
+  const loadShader = () => {
+    const s = document.createElement('script');
+    s.src = 'dist/shader-background.js';
+    s.async = true;
+    s.fetchPriority = 'low';
+    s.onload = () => {
+      // the canvas mounts a frame or two after the script runs; let it paint
+      // one frame at opacity 0 so the fade-in actually runs
+      const root = document.getElementById('shader-gradient-root');
+      const deadline = performance.now() + 5000;
+      (function waitForCanvas() {
+        if (root.querySelector('canvas')) {
+          requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('is-ready')));
+        } else if (performance.now() < deadline) requestAnimationFrame(waitForCanvas);
+      })();
+    };
+    document.body.appendChild(s);
+  };
+  addEventListener('load', () => window.__arrived.then(() => {
+    if ('requestIdleCallback' in window) requestIdleCallback(loadShader, { timeout: 800 });
+    else setTimeout(loadShader, 200);
+  }));
+}
 </script>
 <title>Lightweight Hybrid DNN-GNN NIDS</title>
 <meta name="description" content="Lightweight hybrid DNN-GNN architecture for network intrusion detection with adaptive late fusion. ICNWC 2026." />
@@ -99,7 +133,7 @@ window.__arrived = new Promise(function (done) {
     --bg:       #000000;
     --bg-2:     #0a0a0a;
     --ink:      #ffffff;
-    --ink-soft: #9a9a9a;
+    --ink-soft: #b4b4b4; /* AA over the dimmed shader's brightest patch */
     --ink-dim:  #7a7a7a;
     --muted:    #767676;
     --rule:     rgba(255, 255, 255, 0.10);
@@ -121,6 +155,8 @@ window.__arrived = new Promise(function (done) {
     -webkit-font-smoothing: antialiased;
     /* iOS Safari inflates type in landscape without this. */
     -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+    /* same halo as index.html: keeps the greys legible over the shader's bright patch */
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7), 0 2px 14px rgba(0, 0, 0, 0.5);
     overflow-x: hidden;
   }
 
@@ -298,19 +334,18 @@ window.__arrived = new Promise(function (done) {
     mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
     -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
   }
-  /* The same grid, blinking: dist/blinking-dots.js mounts a canvas in here, so
-     it inherits the placement and the radial mask above for free. The static
-     CSS dots step aside only once the canvas has a frame up -- and stay put
-     entirely when there's no JS, no canvas, or reduced motion. */
-  .grid-bg > canvas {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    display: block;
+  /* shader background (see the loader in <head>), fading up from black once
+     it has painted a frame; with no GPU it never loads and the static dot
+     grid stands in, as on index.html */
+  #shader-gradient-root canvas {
     opacity: 0;
-    transition: opacity 1.2s cubic-bezier(.22,.61,.36,1);
+    transition: opacity 1.1s cubic-bezier(.22,.61,.36,1);
   }
-  .grid-bg.dots-live { background-image: none; }
-  .grid-bg.dots-live > canvas { opacity: 1; }
+  #shader-gradient-root.is-ready canvas { opacity: 1; }
+  html:not(.no-gpu) .grid-bg { display: none; }
+  /* held at about what index's lower sections show through their black veil,
+     so long paragraphs stay legible over the cycling colours */
+  #shader-gradient-root { opacity: 0.33; }
   body::before {
     content: ''; position: fixed; inset: 0;
     pointer-events: none; z-index: 200;
@@ -442,7 +477,7 @@ window.__arrived = new Promise(function (done) {
   .paper-meta-strip em {
     font-style: normal; color: var(--ink); margin-right: 4px;
   }
-  .paper-meta-strip .dash { color: var(--muted); }
+  .paper-meta-strip .dash { color: var(--ink-soft); }
   .paper-meta-strip .pill {
     display: inline-block;
     padding: 3px 10px;
@@ -645,6 +680,7 @@ window.__arrived = new Promise(function (done) {
     text-transform: uppercase; letter-spacing: 0.16em;
     background: rgba(255,255,255,0.02);
     -webkit-tap-highlight-color: transparent;
+    text-shadow: inherit; /* <button> resets it, and the copy button needs the body halo too */
     transition: background 200ms ease,
                 color 200ms ease,
                 border-color 200ms ease,
@@ -839,6 +875,7 @@ window.__arrived = new Promise(function (done) {
 <body>
 <a class="skip-link" href="#main">skip to content</a>
 
+<div id="shader-gradient-root"></div>
 <div class="grid-bg" aria-hidden="true"></div>
 <div class="cursor" id="cursor"></div>
 
@@ -1042,10 +1079,6 @@ window.__arrived = new Promise(function (done) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script src="https://unpkg.com/lenis@1.1.20/dist/lenis.min.js"></script>
-
-<!-- Animates the .grid-bg dot field. After gsap so it can share its ticker
-     rather than starting a second rAF loop of its own. -->
-<script src="dist/blinking-dots.js"></script>
 
 <!-- INTERACTIONS -->
 <script>

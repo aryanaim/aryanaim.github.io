@@ -219,9 +219,10 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     --bg:       #000000;
     --bg-2:     #0a0a0a;
     --ink:      #ffffff;
-    --ink-soft: #9a9a9a;
+    /* --ink-soft, --muted: AA floor over the shader's brightest grain under the veils */
+    --ink-soft: #d0d0d0;
     --ink-dim:  #7a7a7a;
-    --muted:    #767676;
+    --muted:    #c8c8c8;
     --rule:     rgba(255, 255, 255, 0.10);
     --rule-2:   rgba(255, 255, 255, 0.18);
     --font-replica-regular: 'Satoshi', -apple-system, sans-serif;
@@ -549,7 +550,9 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     top: 50%; left: 50%;
     width: 120%; height: 140%;
     transform: translate(-50%, -50%);
-    background: radial-gradient(ellipse at center, rgba(255,255,255,0.04) 0%, transparent 70%);
+    /* a scrim, not a glow: the white headline needs it for 3:1 over the
+       full-brightness shader. Clear by 70%, where the ellipse meets the box. */
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.6) 55%, transparent 70%);
     pointer-events: none;
     z-index: -1;
     animation: heroGlow 6s ease-in-out infinite alternate;
@@ -630,11 +633,11 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: -0.014em;
+    /* over the unveiled shader even white needs a dark halo; inherited, so
+       the link's a:hover glow still replaces it */
+    text-shadow: 0 0 6px #000, 0 0 6px #000, 0 0 12px #000, 0 0 12px #000, 0 0 24px #000;
   }
-  .hero-foot .scroll-hint { display: inline-flex; align-items: center; gap: 12px; color: var(--ink-soft); }
-  /* it's a link now, so give it the same brighten nav links get -- the generic
-     a:hover glow alone reads as decoration rather than an affordance */
-  .hero-foot a.scroll-hint:hover { color: var(--ink); }
+  .hero-foot .scroll-hint { display: inline-flex; align-items: center; gap: 12px; color: var(--ink); }
   .hero-foot .scroll-hint .arrow {
     display: inline-flex;
     width: 10px; height: 24px;
@@ -859,6 +862,13 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     letter-spacing: -0.025em;
     margin-top: 24px;
     margin-bottom: 32px;
+    color: var(--ink-soft);
+  }
+  .about-text h3 .it { font-style: italic; color: var(--ink); }
+  /* a faint marker stroke across the lower half of the research areas */
+  .about-text h3 .hl {
+    color: var(--ink);
+    background: linear-gradient(transparent 58%, rgba(255,255,255,0.12) 58%, rgba(255,255,255,0.12) 90%, transparent 90%);
   }
   .about-text .quote {
     font-family: var(--font-replica-regular);
@@ -915,6 +925,38 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   }
   .contact h2 .it { font-style: italic; color: var(--ink-soft); }
   .contact h2 a { color: var(--ink); }
+  /* "hi": once the headline is in view (.is-on, set by the script at the end)
+     a cat sticker slaps down beside it, then an arrow draws in pointing at
+     the word. Sized in em, so it keeps clear of "you" at every font size. */
+  .contact h2 .it { position: relative; }
+  .contact h2 .hi-cat, .contact h2 .hi-arrow { position: absolute; pointer-events: none; }
+  .contact h2 .hi-cat {
+    left: calc(100% + 1em); bottom: 0.05em;
+    width: clamp(96px, 1.45em, 220px); height: auto;
+    padding: 5px; background: #fff; border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+    transform-origin: 0 100%;
+    opacity: 0; transform: translateY(10%) rotate(-4deg) scale(0.9);
+    transition: opacity 300ms cubic-bezier(.16,1,.3,1), transform 600ms cubic-bezier(.16,1,.3,1);
+  }
+  /* 1em box, 1 unit = 0.01em: the tip lands 0.12em right of the italic i's
+     stem at mid x-height (0.5em up), travelling left, so it points at the word */
+  .contact h2 .hi-arrow {
+    left: 100%; bottom: 0.3em;
+    width: 1em; height: 1em;
+    overflow: visible;
+    fill: none; stroke: var(--ink); stroke-width: 2.5px;
+    stroke-linecap: round; stroke-linejoin: round;
+    clip-path: inset(0 0 0 100%); /* drawn right to left, from the cat to the word */
+    transition: clip-path 450ms cubic-bezier(.16,1,.3,1);
+  }
+  .contact h2 .is-on .hi-cat { opacity: 1; transform: rotate(6deg); transition-delay: 250ms; }
+  .contact h2 .is-on .hi-arrow { clip-path: inset(0); transition-delay: 650ms; }
+  @media (prefers-reduced-motion: reduce) {
+    .contact h2 .hi-cat { transform: rotate(6deg); }
+    .contact h2 .hi-arrow { clip-path: none; opacity: 0; transition: opacity 300ms ease 300ms; }
+    .contact h2 .is-on .hi-arrow { opacity: 1; }
+  }
 
   .contact-note {
     margin-top: 40px;
@@ -1316,7 +1358,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   <div class="section-label pop-in">about</div>
   <div class="about-text">
     <h3 class="pop-in">
-      CS graduate from SRM Institute of Science and Technology, working on network intrusion detection, applied cryptography, and quantum security.
+      MS CS student at <span class="it">UMass Amherst</span>, working on <span class="hl">network intrusion detection</span>, <span class="hl">applied cryptography</span>, and <span class="hl">quantum security</span>.
     </h3>
     <p class="pop-in">I care about systems that hold up under pressure. That often means smaller, not bigger. My research tends toward lightweight architectures that run on constrained hardware: intrusion detection at the edge, authentication protocols for resource-limited devices, and control loops for quantum systems that have to converge in real time. The goal is always finding the minimum viable design that still holds under adversarial conditions.</p>
   </div>
@@ -1325,6 +1367,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     <div class="block pop-in">
       <label>Education</label>
       <ul>
+        <li><span>MS CS, University of Massachusetts Amherst</span><span>'26–'28</span></li>
         <li><span>B.Tech CSE, SRM Institute of Science and Technology</span><span>'22–'26</span></li>
       </ul>
     </div>
@@ -1341,11 +1384,12 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     <div class="block pop-in">
       <label>Stack</label>
       <ul>
-        <li><span>Python · C/C++ · Bash</span><span>core</span></li>
-        <li><span>TensorFlow · Keras</span><span>ml</span></li>
+        <li><span>Python · C/C++ · Bash · SQL</span><span>core</span></li>
+        <li><span>PyTorch · scikit-learn</span><span>ml</span></li>
         <li><span>Burp · ZAP · Nmap</span><span>offsec</span></li>
-        <li><span>Scapy · PyShark · Wireshark</span><span>net</span></li>
-        <li><span>Kafka · FastAPI · Grafana</span><span>infra</span></li>
+        <li><span>Scapy · Wireshark · NetSquid</span><span>net</span></li>
+        <li><span>ECDH · HKDF · AEAD</span><span>crypto</span></li>
+        <li><span>Linux · Git · Claude Code</span><span>tools</span></li>
       </ul>
     </div>
   </aside>
@@ -1357,7 +1401,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   <div class="rail-content">
     <h2 class="pop-in">
       why don't you<br />
-      come say <span class="it"><a href="mailto:aryanmondal@umass.edu">hi</a></span>
+      come say <span class="it"><a href="mailto:aryanmondal@umass.edu">hi</a><svg class="hi-arrow" viewBox="0 0 100 100" aria-hidden="true"><path vector-effect="non-scaling-stroke" d="M93 35 C75 10 40 70 8 80 L20.7 82.9 M8 80 L16.8 70.4" /></svg><img class="hi-cat" src="hi-cat.webp" alt="" width="400" height="400" loading="lazy" decoding="async" /></span>
     </h2>
     <p class="contact-note pop-in">
       inbox open · usually reply within a day · EST
@@ -1726,6 +1770,17 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
         );
       });
     }
+  }
+
+  // contact: the cat sticker by "hi" pops up the first time the headline is
+  // well into view. Not gated on __NO_GPU: there the page's no-gpu rule makes
+  // it appear without the motion.
+  const hiWord = document.querySelector('.contact h2 .it');
+  if (hiWord && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { hiWord.classList.add('is-on'); io.disconnect(); }
+    }, { threshold: 0.6 });
+    io.observe(hiWord.closest('h2'));
   }
 
   // If loaded from a cross-page hash (e.g. nids.html → index.html#work),

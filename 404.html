@@ -33,6 +33,51 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   html.no-gpu .cursor { display: none !important; }
   html.no-gpu::view-transition-old(root), html.no-gpu::view-transition-new(root) { animation: none; }
 </style>
+<script>
+// Resolves once this page has finished arriving: at once, or when the page
+// transition into it ends. Start-up that would add motion of its own under
+// that transition (the shader background) waits for it.
+window.__arrived = new Promise(function (done) {
+  if (!('onpagereveal' in window)) return done();
+  addEventListener('pagereveal', function (e) {
+    if (e.viewTransition) e.viewTransition.finished.then(done, done); else done();
+  }, { once: true });
+});
+</script>
+<script>
+// Decorative shader background: the same bundle and phone settings as
+// index.html (the reasoning is there). Runs once the page has loaded and the
+// transition into it has finished, then fades in over the painted page.
+if (!window.__NO_GPU) {
+  if (matchMedia('(hover: none)').matches) {
+    window.__SG_OVERRIDE = { grain: 'off', lightType: '3d' };
+    window.__SG_DPR = 0.5;
+    window.__SG_INTERVAL = 1500;
+  }
+  const loadShader = () => {
+    const s = document.createElement('script');
+    s.src = 'dist/shader-background.js';
+    s.async = true;
+    s.fetchPriority = 'low';
+    s.onload = () => {
+      // the canvas mounts a frame or two after the script runs; let it paint
+      // one frame at opacity 0 so the fade-in actually runs
+      const root = document.getElementById('shader-gradient-root');
+      const deadline = performance.now() + 5000;
+      (function waitForCanvas() {
+        if (root.querySelector('canvas')) {
+          requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('is-ready')));
+        } else if (performance.now() < deadline) requestAnimationFrame(waitForCanvas);
+      })();
+    };
+    document.body.appendChild(s);
+  };
+  addEventListener('load', () => window.__arrived.then(() => {
+    if ('requestIdleCallback' in window) requestIdleCallback(loadShader, { timeout: 800 });
+    else setTimeout(loadShader, 200);
+  }));
+}
+</script>
 <title>Page not found — Aryan Mondal</title>
 <meta name="description" content="That page does not exist." />
 <meta name="theme-color" content="#000000" />
@@ -84,6 +129,11 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     /* iOS Safari inflates type in landscape without this. */
     -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
     display: flex; flex-direction: column;
+    /* legible over the shader: index.html's body shadow plus a stacked black
+       halo, since the shader's bright patch can sit right behind this text */
+    --halo: 0 0 4px #000, 0 0 8px #000, 0 0 12px #000, 0 0 16px #000;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7), 0 2px 14px rgba(0, 0, 0, 0.5),
+      var(--halo), var(--halo), var(--halo), var(--halo), var(--halo);
   }
   .grid-bg {
     position: fixed; inset: 0; z-index: 1; pointer-events: none;
@@ -94,6 +144,15 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     animation: gridBreathe 8s ease-in-out infinite;
   }
   @keyframes gridBreathe { 0%,100%{opacity:.7} 50%{opacity:1} }
+  /* shader background (see the loader in <head>), fading up from black once
+     it has painted a frame; with no GPU it never loads and the static dot
+     grid stands in, as on index.html */
+  #shader-gradient-root canvas {
+    opacity: 0;
+    transition: opacity 1.1s cubic-bezier(.22,.61,.36,1);
+  }
+  #shader-gradient-root.is-ready canvas { opacity: 1; }
+  html:not(.no-gpu) .grid-bg { display: none; }
   body::before {
     content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 200;
     opacity: .5; mix-blend-mode: overlay;
@@ -135,10 +194,9 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     padding: 48px;
   }
   .err { text-align: center; max-width: 480px; }
-  .err-code { font-family: var(--font-mono); font-size: 13px; color: var(--ink-dim); margin-bottom: 24px; }
-  .err-code span { color: var(--ink-soft); }
   .err h1 { font-size: clamp(28px,6vw,44px); font-weight: 400; letter-spacing: -.02em; line-height: 1.15; margin-bottom: 20px; }
-  .err p { color: var(--ink-soft); font-size: 15px; line-height: 1.6; margin-bottom: 40px; }
+  /* lighter than --ink-soft: centred, it sits on the shader's brightest patch */
+  .err p { color: #bbb; font-size: 15px; line-height: 1.6; margin-bottom: 40px; }
   .err a {
     color: var(--ink); text-decoration: none; font-family: var(--font-mono); font-size: 13px;
     border: 1px solid var(--rule); padding: 10px 24px; border-radius: 6px;
@@ -216,6 +274,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     font-size: 12px;
     letter-spacing: 0.08em;
     text-decoration: none;
+    text-shadow: none; /* the body halo would smear its dark text */
     transform: translateY(calc(-100% - 24px));
     transition: transform .18s cubic-bezier(.16,1,.3,1);
   }
@@ -259,6 +318,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 </head>
 <body>
 <a class="skip-link" href="#main">skip to content</a>
+<div id="shader-gradient-root"></div>
 <div class="grid-bg"></div>
 <nav>
   <a href="index.html" class="logo back" data-back><span class="arrow" aria-hidden="true">←</span>back</a>
@@ -272,7 +332,6 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 </nav>
 <main id="main" tabindex="-1">
   <div class="err">
-    <div class="err-code"><span>$</span> HTTP/1.1 404 Not Found</div>
     <h1>That page doesn't exist.</h1>
     <p>The link may be stale, or the page has moved. Everything that's live is one click away.</p>
     <a href="index.html" data-back><span class="arrow" aria-hidden="true">←</span> back to portfolio</a>
