@@ -50,9 +50,8 @@ window.__arrived = new Promise(function (done) {
 // transition into it has finished, then fades in over the painted page.
 if (!window.__NO_GPU) {
   if (matchMedia('(hover: none)').matches) {
-    window.__SG_OVERRIDE = { grain: 'off', lightType: '3d' };
+    window.__SG_OVERRIDE = { grain: 'off', reflection: 0.1 };
     window.__SG_DPR = 0.5;
-    window.__SG_INTERVAL = 1500;
   }
   const loadShader = () => {
     const s = document.createElement('script');
@@ -130,11 +129,6 @@ if (!window.__NO_GPU) {
     /* iOS Safari inflates type in landscape without this. */
     -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
     display: flex; flex-direction: column;
-    /* legible over the shader: index.html's body shadow plus a stacked black
-       halo, since the shader's bright patch can sit right behind this text */
-    --halo: 0 0 4px #000, 0 0 8px #000, 0 0 12px #000, 0 0 16px #000;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7), 0 2px 14px rgba(0, 0, 0, 0.5),
-      var(--halo), var(--halo), var(--halo), var(--halo), var(--halo);
   }
   .grid-bg {
     position: fixed; inset: 0; z-index: 1; pointer-events: none;
@@ -335,7 +329,6 @@ if (!window.__NO_GPU) {
     font-size: 12px;
     letter-spacing: 0.08em;
     text-decoration: none;
-    text-shadow: none; /* the body halo would smear its dark text */
     transform: translateY(calc(-100% - 24px));
     transition: transform .18s cubic-bezier(.16,1,.3,1);
   }

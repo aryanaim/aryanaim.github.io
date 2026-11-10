@@ -50,9 +50,8 @@ window.__arrived = new Promise(function (done) {
 // transition into it has finished, then fades in over the painted page.
 if (!window.__NO_GPU) {
   if (matchMedia('(hover: none)').matches) {
-    window.__SG_OVERRIDE = { grain: 'off', lightType: '3d' };
+    window.__SG_OVERRIDE = { grain: 'off', reflection: 0.1 };
     window.__SG_DPR = 0.5;
-    window.__SG_INTERVAL = 1500;
   }
   const loadShader = () => {
     const s = document.createElement('script');
@@ -155,8 +154,6 @@ if (!window.__NO_GPU) {
     -webkit-font-smoothing: antialiased;
     /* iOS Safari inflates type in landscape without this. */
     -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
-    /* same halo as index.html: keeps the greys legible over the shader's bright patch */
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7), 0 2px 14px rgba(0, 0, 0, 0.5);
     overflow-x: hidden;
   }
 
@@ -680,7 +677,6 @@ if (!window.__NO_GPU) {
     text-transform: uppercase; letter-spacing: 0.16em;
     background: rgba(255,255,255,0.02);
     -webkit-tap-highlight-color: transparent;
-    text-shadow: inherit; /* <button> resets it, and the copy button needs the body halo too */
     transition: background 200ms ease,
                 color 200ms ease,
                 border-color 200ms ease,

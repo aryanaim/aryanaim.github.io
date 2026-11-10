@@ -132,23 +132,26 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   // main-thread time during initial load. The bytes are already preloaded
   // above, so this delay is scheduling only, not download.
   // On a phone this background was ~24% of the main thread forever, plus a
-  // full-screen sphere shader and a full-screen halftone pass every frame, plus
-  // 3.3MB of HDR env maps. Same `hover: none` breakpoint dist/warp-text.js and
-  // the custom cursor already use -- keep the gradient, drop what costs most:
+  // full-screen sphere shader and a full-screen halftone pass every frame.
+  // Same `hover: none` breakpoint dist/warp-text.js and the custom cursor
+  // already use -- keep the look, drop what costs most:
   //   grain -> off        removes the HalftonePass postprocess pass entirely
-  //   lightType -> 3d     renders an ambientLight instead of <Environment>, so
-  //                       the three city/dawn/lobby .hdr fetches never fire
-  //                       (the library builds them as an object literal, so
-  //                       asking for one downloads all three)
+  //                       (on a portrait canvas it also crushed the sphere
+  //                       almost to black)
+  //   reflection -> 0.1   without grain's darkening the env reflection washes
+  //                       the colour out grey; this keeps desktop's deep tone
   //   dpr -> 0.5          the canvas is a blurry gradient; at 3x native this
-  //                       was ~36x more pixels per frame than it needs
-  //   interval -> 1500ms  the color cycle re-renders the React tree on a timer
+  //                       was ~36x more pixels per frame than it needs, and
+  //                       even at 4x levels it shows no banding at 0.5
+  // Lighting stays `env` (one 1.5MB city.hdr, shared with desktop): the `3d`
+  // ambient light flattened the sphere into an even grey haze, and the
+  // colour timer stays at its 350ms default -- at 1500ms each step moved the
+  // colour a third of the way at once, so it visibly jumped.
   const SHADER_LOW_POWER = window.matchMedia
     && window.matchMedia('(hover: none)').matches;
   if (SHADER_LOW_POWER) {
-    window.__SG_OVERRIDE = { grain: 'off', lightType: '3d' };
+    window.__SG_OVERRIDE = { grain: 'off', reflection: 0.1 };
     window.__SG_DPR = 0.5;
-    window.__SG_INTERVAL = 1500;
   }
   function loadShaderBackground() {
     const s = document.createElement('script');
@@ -474,6 +477,31 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     letter-spacing: -0.014em;
     display: inline-flex; align-items: center; gap: 10px;
   }
+  /* Hover (or keyboard focus): the name rolls up and away letter by letter
+     while "Yes, that's me !" rises in. The second line sits over the first,
+     out of the layout, so the nav never shifts. Transitions, not keyframes,
+     so a quick mouse-out reverses from wherever it is. Letters are split by
+     splitHeadline() in the script at the end. */
+  nav .logo .logo-roll { position: relative; display: inline-block; }
+  nav .logo .logo-b { position: absolute; left: 0; top: 0; white-space: nowrap; }
+  nav .logo .ch {
+    display: inline-block;
+    transition: transform 380ms cubic-bezier(.16,1,.3,1),
+                opacity 380ms cubic-bezier(.16,1,.3,1),
+                filter 380ms cubic-bezier(.16,1,.3,1);
+    transition-delay: calc(var(--i) * 12ms);
+  }
+  nav .logo .logo-b .ch { opacity: 0; transform: translateY(0.6em); filter: blur(3px); }
+  @media (hover: hover) and (pointer: fine) {
+    nav .logo:hover .logo-a .ch { opacity: 0; transform: translateY(-0.6em); filter: blur(3px); }
+    nav .logo:hover .logo-b .ch { opacity: 1; transform: none; filter: none; }
+  }
+  nav .logo:focus-visible .logo-a .ch { opacity: 0; transform: translateY(-0.6em); filter: blur(3px); }
+  nav .logo:focus-visible .logo-b .ch { opacity: 1; transform: none; filter: none; }
+  @media (prefers-reduced-motion: reduce) {
+    /* a plain crossfade: no rolling, no blur */
+    nav .logo .ch { transform: none !important; filter: none !important; transition-property: opacity; transition-delay: 0ms; }
+  }
   nav ul { display: flex; gap: 30px; list-style: none; flex-wrap: wrap; justify-content: flex-end; }
   nav a {
     position: relative; padding: 4px 2px;
@@ -550,9 +578,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     top: 50%; left: 50%;
     width: 120%; height: 140%;
     transform: translate(-50%, -50%);
-    /* a scrim, not a glow: the white headline needs it for 3:1 over the
-       full-brightness shader. Clear by 70%, where the ellipse meets the box. */
-    background: radial-gradient(ellipse at center, rgba(0,0,0,0.6) 55%, transparent 70%);
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0.04) 0%, transparent 70%);
     pointer-events: none;
     z-index: -1;
     animation: heroGlow 6s ease-in-out infinite alternate;
@@ -633,9 +659,6 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: -0.014em;
-    /* over the unveiled shader even white needs a dark halo; inherited, so
-       the link's a:hover glow still replaces it */
-    text-shadow: 0 0 6px #000, 0 0 6px #000, 0 0 12px #000, 0 0 12px #000, 0 0 24px #000;
   }
   .hero-foot .scroll-hint { display: inline-flex; align-items: center; gap: 12px; color: var(--ink); }
   .hero-foot .scroll-hint .arrow {
@@ -902,7 +925,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     transition: color .25s;
   }
   .about-side ul li:hover { color: var(--ink); }
-  .about-side ul li span:last-child { color: var(--muted); }
+  .about-side ul li span + span { color: var(--muted); }
 
   /* ─── CONTACT ─── */
   .contact {
@@ -1252,7 +1275,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 <div class="cursor" id="cursor"></div>
 
 <nav>
-  <a href="#" class="logo">Aryan Mondal</a>
+  <a href="#" class="logo" aria-label="Aryan Mondal"><span class="logo-roll"><span class="logo-a">Aryan Mondal</span><span class="logo-b" aria-hidden="true">Yes, that's me !</span></span></a>
   <ul>
     <li><a href="#work">work</a></li>
     <li><a href="#about">about</a></li>
@@ -1374,11 +1397,11 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     <div class="block pop-in">
       <label>Focus areas</label>
       <ul>
-        <li><span>Network intrusion detection</span><span>›</span></li>
-        <li><span>Applied cryptography</span><span>›</span></li>
-        <li><span>Quantum key distribution</span><span>›</span></li>
-        <li><span>UAV / edge security</span><span>›</span></li>
-        <li><span>Web exploit research</span><span>›</span></li>
+        <li><span>Network intrusion detection</span></li>
+        <li><span>Applied cryptography</span></li>
+        <li><span>Quantum key distribution</span></li>
+        <li><span>UAV / edge security</span></li>
+        <li><span>Web exploit research</span></li>
       </ul>
     </div>
     <div class="block pop-in">
@@ -1782,6 +1805,11 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     }, { threshold: 0.6 });
     io.observe(hiWord.closest('h2'));
   }
+
+  // logo: split both labels into letters for the hover roll (CSS, see nav .logo)
+  document.querySelectorAll('nav .logo .logo-a, nav .logo .logo-b').forEach((label) => {
+    splitHeadline(label).forEach((ch, i) => ch.style.setProperty('--i', i));
+  });
 
   // If loaded from a cross-page hash (e.g. nids.html → index.html#work),
   // skip the hero intro, reveal everything, and smooth-scroll to the section.
