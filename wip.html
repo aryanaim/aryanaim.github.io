@@ -45,28 +45,61 @@ window.__arrived = new Promise(function (done) {
 });
 </script>
 <script>
-// Decorative shader background: the same bundle and phone settings as
-// index.html (the reasoning is there). Runs once the page has loaded and the
-// transition into it has finished, then fades in over the painted page.
+// Decorative shader background: the same bundle as index.html, and on
+// phones too the same settings as desktop. Runs once the page has loaded and
+// the transition into it has finished, then fades in over the painted page.
 if (!window.__NO_GPU) {
-  if (matchMedia('(hover: none)').matches) {
-    window.__SG_OVERRIDE = { grain: 'off', reflection: 0.1 };
-    window.__SG_DPR = 0.5;
-  }
+  // the shader's 1.5MB lighting map, fetched at load so it's already in the
+  // HTTP cache when the shader asks for it (see index.html)
+  addEventListener('load', () => {
+    fetch('https://ruucm.github.io/shadergradient/ui@0.0.0/assets/hdr/city.hdr', { priority: 'low' })
+      .then((r) => r.arrayBuffer()).catch(() => {});
+  });
   const loadShader = () => {
     const s = document.createElement('script');
     s.src = 'dist/shader-background.js';
     s.async = true;
     s.fetchPriority = 'low';
     s.onload = () => {
-      // the canvas mounts a frame or two after the script runs; let it paint
-      // one frame at opacity 0 so the fade-in actually runs
+      // fade in on the first frame that shows something, not on the canvas
+      // mounting (seconds earlier on a phone): see revealShaderBackground()
+      // in index.html for the reasoning
       const root = document.getElementById('shader-gradient-root');
       const deadline = performance.now() + 5000;
       (function waitForCanvas() {
-        if (root.querySelector('canvas')) {
+        const canvas = root.querySelector('canvas');
+        if (!canvas) {
+          if (performance.now() < deadline) requestAnimationFrame(waitForCanvas);
+          return;
+        }
+        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+        const draws = gl ? ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced'].filter((m) => gl[m]) : [];
+        const probe = document.createElement('canvas');
+        probe.width = probe.height = 8;
+        const pen = probe.getContext('2d', { willReadFrequently: true });
+        let shown = false, queued = false;
+        const show = () => {
+          if (shown) return;
+          shown = true;
+          draws.forEach((m) => delete gl[m]);
+          // let it paint one frame at opacity 0 so the transition runs
           requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('is-ready')));
-        } else if (performance.now() < deadline) requestAnimationFrame(waitForCanvas);
+        };
+        const look = () => {
+          queued = false;
+          pen.drawImage(canvas, 0, 0, 8, 8);
+          const px = pen.getImageData(0, 0, 8, 8).data;
+          for (let i = 0; i < px.length; i += 4) if (px[i] + px[i + 1] + px[i + 2] > 30) return show();
+        };
+        draws.forEach((m) => {
+          const own = gl[m];
+          gl[m] = function () {
+            if (!queued && !shown) { queued = true; queueMicrotask(look); }
+            return own.apply(this, arguments);
+          };
+        });
+        if (!draws.length) show();
+        setTimeout(show, 10000); // never saw it light up: show whatever is there
       })();
     };
     document.body.appendChild(s);

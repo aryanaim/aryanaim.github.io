@@ -90,6 +90,15 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     const l = document.createElement('link');
     l.rel = 'prefetch'; l.as = 'script'; l.href = 'dist/shader-background.js';
     document.head.appendChild(l);
+    // The shader only asks for its 1.5MB lighting map (envPreset 'city') once
+    // it's running, ~1.5s after it starts, and then waits on the download.
+    // Fetch it at load instead, so it's already in the HTTP cache: same URL
+    // and request mode as the bundle's own fetch. fetch, not rel=prefetch,
+    // because Safari ignores prefetch.
+    addEventListener('load', () => {
+      fetch('https://ruucm.github.io/shadergradient/ui@0.0.0/assets/hdr/city.hdr', { priority: 'low' })
+        .then((r) => r.arrayBuffer()).catch(() => {});
+    });
   }
 </script>
 
@@ -131,28 +140,10 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   // settled instead of competing with fonts/CSS/critical scripts for
   // main-thread time during initial load. The bytes are already preloaded
   // above, so this delay is scheduling only, not download.
-  // On a phone this background was ~24% of the main thread forever, plus a
-  // full-screen sphere shader and a full-screen halftone pass every frame.
-  // Same `hover: none` breakpoint dist/warp-text.js and the custom cursor
-  // already use -- keep the look, drop what costs most:
-  //   grain -> off        removes the HalftonePass postprocess pass entirely
-  //                       (on a portrait canvas it also crushed the sphere
-  //                       almost to black)
-  //   reflection -> 0.1   without grain's darkening the env reflection washes
-  //                       the colour out grey; this keeps desktop's deep tone
-  //   dpr -> 0.5          the canvas is a blurry gradient; at 3x native this
-  //                       was ~36x more pixels per frame than it needs, and
-  //                       even at 4x levels it shows no banding at 0.5
-  // Lighting stays `env` (one 1.5MB city.hdr, shared with desktop): the `3d`
-  // ambient light flattened the sphere into an even grey haze, and the
-  // colour timer stays at its 350ms default -- at 1500ms each step moved the
-  // colour a third of the way at once, so it visibly jumped.
-  const SHADER_LOW_POWER = window.matchMedia
-    && window.matchMedia('(hover: none)').matches;
-  if (SHADER_LOW_POWER) {
-    window.__SG_OVERRIDE = { grain: 'off', reflection: 0.1 };
-    window.__SG_DPR = 0.5;
-  }
+  // Phones get exactly the desktop shader (grain, env light, 1x canvas) by
+  // choice: every cut-down version looked visibly worse. It costs a phone
+  // main-thread time and battery every frame; the no-GPU check above still
+  // keeps it off devices that would render it in software.
   function loadShaderBackground() {
     const s = document.createElement('script');
     s.src = 'dist/shader-background.js';
@@ -171,14 +162,46 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
     if (!root) return;
     const deadline = performance.now() + 5000;
     (function waitForCanvas() {
-      if (!root.querySelector('canvas')) {
+      const canvas = root.querySelector('canvas');
+      if (!canvas) {
         if (performance.now() < deadline) requestAnimationFrame(waitForCanvas);
         return;
       }
-      // let the canvas paint one frame at opacity 0 so the transition runs
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => root.classList.add('is-ready'));
+      // Fade in on the first frame the shader shows something, not on the
+      // canvas mounting: on a phone that came ~3s earlier (the sphere draws
+      // black until its HDR map arrives), so the fade played out over a black
+      // canvas and the gradient then popped in at full strength. A frame is
+      // still readable in a microtask right after the renderer's draw calls,
+      // before it's presented, so each frame gets an 8x8 look until one isn't
+      // black; then the context's own draw methods are put back.
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+      const draws = gl ? ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced'].filter((m) => gl[m]) : [];
+      const probe = document.createElement('canvas');
+      probe.width = probe.height = 8;
+      const pen = probe.getContext('2d', { willReadFrequently: true });
+      let shown = false, queued = false;
+      const show = () => {
+        if (shown) return;
+        shown = true;
+        draws.forEach((m) => delete gl[m]);
+        // let it paint one frame at opacity 0 so the transition runs
+        requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('is-ready')));
+      };
+      const look = () => {
+        queued = false;
+        pen.drawImage(canvas, 0, 0, 8, 8);
+        const px = pen.getImageData(0, 0, 8, 8).data;
+        for (let i = 0; i < px.length; i += 4) if (px[i] + px[i + 1] + px[i + 2] > 30) return show();
+      };
+      draws.forEach((m) => {
+        const own = gl[m];
+        gl[m] = function () {
+          if (!queued && !shown) { queued = true; queueMicrotask(look); }
+          return own.apply(this, arguments);
+        };
       });
+      if (!draws.length) show();
+      setTimeout(show, 10000); // never saw it light up: show whatever is there
     })();
   }
   // Arriving from another page, the idle callback landed inside the
@@ -188,9 +211,18 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   window.addEventListener('pagereveal', (e) => {
     if (e.viewTransition) pageTransition = e.viewTransition.finished;
   });
+  // ...and for the headline intro to land: on a phone the shader's mount
+  // (bundle, shader compiles, HDR decode) ran as 300-400ms main-thread tasks
+  // right inside it, freezing the letters mid-rise. The 4s cap means an intro
+  // that never reports back still gets its background.
+  const heroLanded = () => new Promise((done) => {
+    if (document.body.dataset.heroSettled === '1') return done();
+    document.body.addEventListener('hero:settled', done, { once: true });
+    setTimeout(done, 4000);
+  });
   if (!window.__NO_GPU) window.addEventListener('load', () => {
     // one frame on, so pagereveal has fired even when load beat first paint
-    requestAnimationFrame(() => Promise.resolve(pageTransition).catch(() => {}).then(() => {
+    requestAnimationFrame(() => Promise.resolve(pageTransition).catch(() => {}).then(heroLanded).then(() => {
       if ('requestIdleCallback' in window) {
         requestIdleCallback(loadShaderBackground, { timeout: 800 });
       } else {
@@ -1699,7 +1731,15 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
       // the masking box is what slides today; hand that job to the glyphs
       gsap.set('.word-line > span', { y: '0%' });
       gsap.set(chars, { yPercent: 110, rotateX: -88, opacity: 0, transformPerspective: 520 });
+      // The intro tightens the tracking from 0.05em. On a phone that looser
+      // start re-wrapped "a security researcher" onto two rows, so the
+      // centred headline sat 19px high and dropped when the line unwrapped
+      // mid-intro. Where any line grows at the loose tracking, keep the final
+      // tracking for this load instead.
+      const heights = lines.map((l) => l.offsetHeight);
       gsap.set(lines, { letterSpacing: '0.05em' });
+      const tracks = lines.every((l, i) => l.offsetHeight === heights[i]);
+      if (!tracks) gsap.set(lines, { clearProps: 'letterSpacing' });
       heroLive(); // glyphs are placed; the trace clips to .word-line as they rise
 
       /* Delays undulate rather than march: a linear sweep across 48 glyphs reads
@@ -1721,8 +1761,8 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
         // the flip settles on the same expo-out as the rise: no overshoot past
         // upright, so the letters land without a bounce
         .to(chars, { rotateX: 0, duration: 1.05, stagger: wave }, 0.05)
-        .to(lines, { letterSpacing: '-0.035em', duration: 1.1, stagger: 0.09, ease: 'power2.out' }, 0.15)
         .to('.reveal', { opacity: 1, y: 0, duration: 1.0, stagger: 0.06, ease: 'power3.out' }, 0.55);
+      if (tracks) tl.to(lines, { letterSpacing: '-0.035em', duration: 1.1, stagger: 0.09, ease: 'power2.out' }, 0.15);
     } else {
       document.querySelectorAll('.word-line > span').forEach(s => s.style.transform = 'none');
       document.querySelectorAll('.reveal').forEach(s => { s.style.opacity = 1; s.style.transform = 'none'; });
