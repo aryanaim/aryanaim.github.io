@@ -24,7 +24,6 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 </script>
 <style>
   html.no-gpu { scroll-behavior: auto; }
-  html.no-gpu .reveal, html.no-gpu .pop-in { opacity: 1; transform: none; }
   html.no-gpu *, html.no-gpu *::before, html.no-gpu *::after {
     animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -113,7 +112,7 @@ if (!window.__NO_GPU) {
 <title>Lightweight Hybrid DNN-GNN NIDS</title>
 <meta name="description" content="Lightweight hybrid DNN-GNN architecture for network intrusion detection with adaptive late fusion. ICNWC 2026." />
 <meta name="theme-color" content="#000000" />
-<link rel="icon" href="favicon.png" type="image/png" />
+<link rel="icon" href="/favicon.ico" type="image/x-icon" />
 
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <meta name="color-scheme" content="dark" />
@@ -166,7 +165,6 @@ if (!window.__NO_GPU) {
     --bg-2:     #0a0a0a;
     --ink:      #ffffff;
     --ink-soft: #b4b4b4; /* AA over the dimmed shader's brightest patch */
-    --ink-dim:  #7a7a7a;
     --muted:    #767676;
     --rule:     rgba(255, 255, 255, 0.10);
     --rule-2:   rgba(255, 255, 255, 0.18);
@@ -586,12 +584,6 @@ if (!window.__NO_GPU) {
     text-transform: uppercase; letter-spacing: 0.14em;
     line-height: 1.5;
   }
-  .author-list .email {
-    font-family: var(--font-replica-mono); font-size: 10.5px;
-    color: var(--ink-soft);
-    letter-spacing: 0.04em;
-    text-transform: none;
-  }
 
   .keyword-list {
     display: flex; flex-wrap: wrap; gap: 8px;
@@ -821,7 +813,7 @@ if (!window.__NO_GPU) {
     .keyword-list .kw { font-size: 9px; padding: 5px 10px; }
     .author-list { gap: 18px 22px; }
     .author-list .name { font-size: 12px; }
-    .author-list .affil, .author-list .email { font-size: 9.5px; }
+    .author-list .affil { font-size: 9.5px; }
     .info-grid .cell .v.serif { font-size: 18px; }
     .info-grid .cell .v { font-size: 12px; }
     .cta { padding: 12px 18px; font-size: 10px; gap: 10px; letter-spacing: 0.14em; }

@@ -24,7 +24,6 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 </script>
 <style>
   html.no-gpu { scroll-behavior: auto; }
-  html.no-gpu .reveal, html.no-gpu .pop-in { opacity: 1; transform: none; }
   html.no-gpu *, html.no-gpu *::before, html.no-gpu *::after {
     animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -113,7 +112,7 @@ if (!window.__NO_GPU) {
 <title>Page not found — Aryan Mondal</title>
 <meta name="description" content="That page does not exist." />
 <meta name="theme-color" content="#000000" />
-<link rel="icon" href="favicon.png" type="image/png" />
+<link rel="icon" href="/favicon.ico" type="image/x-icon" />
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <meta name="color-scheme" content="dark" />
 <meta name="view-transition" content="same-origin" />
@@ -148,7 +147,7 @@ if (!window.__NO_GPU) {
   }
 
   :root {
-    --bg: #000; --ink: #fff; --ink-soft: #9a9a9a; --ink-dim: #7a7a7a;
+    --bg: #000; --ink: #fff; --ink-soft: #9a9a9a;
     --rule: rgba(255,255,255,0.10);
     --font: 'Satoshi',-apple-system,sans-serif;
     --font-mono: 'JetBrains Mono','IBM Plex Mono',monospace;
