@@ -40,6 +40,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 <link rel="prefetch" href="nids.html" as="document" />
 <link rel="prefetch" href="qkd_scada.html" as="document" />
 <link rel="prefetch" href="rhaap.html" as="document" />
+<link rel="prefetch" href="caracal.html" as="document" />
 
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <meta name="color-scheme" content="dark" />
@@ -1289,11 +1290,11 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 <nav>
   <a href="#" class="logo" aria-label="Aryan Mondal"><span class="logo-roll"><span class="logo-a">Aryan Mondal</span><span class="logo-b" aria-hidden="true">Yes, that's me !</span></span></a>
   <ul>
-    <li><a href="#work">work</a></li>
+    <li><a href="#projects">projects</a></li>
+    <li><a href="#work">research</a></li>
     <li><a href="#about">about</a></li>
     <li><a href="#contact">contact</a></li>
     <li><a href="resume.pdf" target="_blank" rel="noopener">resume ↗</a></li>
-    <li><a href="https://scholar.google.com/citations?user=Si4um1MAAAAJ" target="_blank" rel="noopener">scholar ↗</a></li>
   </ul>
 </nav>
 
@@ -1312,7 +1313,7 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
   </div>
 
   <div class="hero-foot reveal">
-    <a class="scroll-hint" href="#work">selected work <span class="arrow" aria-hidden="true"><svg viewBox="0 0 10 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 1 V18 M1.5 14.5 L5 18 L8.5 14.5" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+    <a class="scroll-hint" href="#projects" aria-label="scroll to projects"><span class="arrow" aria-hidden="true"><svg viewBox="0 0 10 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 1 V18 M1.5 14.5 L5 18 L8.5 14.5" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
   </div>
 </section>
 
@@ -1327,11 +1328,36 @@ if (window.__NO_GPU) document.documentElement.classList.add('no-gpu');
 </section>
 
 <!-- PROJECTS -->
-<section class="projects with-rail" id="work">
-  <div class="section-label pop-in">work</div>
+<section class="projects with-rail" id="projects">
+  <div class="section-label pop-in">projects</div>
   <div class="rail-content">
   <div class="projects-head">
-    <h2 class="pop-in">Selected research<br />&amp; publications</h2>
+    <h2 class="pop-in">Things I've<br />built</h2>
+    <p class="projects-lede pop-in">
+      software outside the papers, starting with <span class="it">private vector search</span> and a playground you can poke at.
+    </p>
+  </div>
+
+  <ul class="index-list">
+    <li class="pop-in">
+      <a href="caracal.html">
+        <span class="ix">1</span>
+        <span class="ix-title">Caracal: <span class="it">private</span> vector search</span>
+        <span class="ix-tags">applied cryptography · vector databases</span>
+        <span class="ix-year"></span>
+        <span class="ix-arrow">→</span>
+      </a>
+    </li>
+  </ul>
+  </div>
+</section>
+
+<!-- PUBLICATIONS -->
+<section class="projects with-rail" id="work">
+  <div class="section-label pop-in">research</div>
+  <div class="rail-content">
+  <div class="projects-head">
+    <h2 class="pop-in">Research<br />&amp; publications</h2>
     <p class="projects-lede pop-in">
       five pieces across <span class="it">network intrusion detection</span>, <span class="it">applied cryptography</span>, and <span class="it">quantum security</span>: peer-reviewed venues and working prototypes.
     </p>
