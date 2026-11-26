@@ -838,8 +838,11 @@ if (!window.__NO_GPU) {
     color: var(--ink-soft); background: transparent;
     border: 1px solid var(--rule-2); border-radius: 999px;
     padding: 7px 12px;
-    transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+    transition: color 150ms ease, background 150ms ease, border-color 150ms ease,
+                transform 140ms cubic-bezier(.16,1,.3,1);
+    -webkit-tap-highlight-color: transparent;
   }
+  .seg button:active, .pg-btn:active { transform: scale(0.97); }
   .seg button b { font-weight: 400; color: var(--ink); margin-right: 4px; }
   .seg button[aria-pressed="true"] { color: var(--bg); background: var(--ink); border-color: var(--ink); }
   .seg button[aria-pressed="true"] b { color: var(--bg); }
@@ -1358,7 +1361,7 @@ if (!window.__NO_GPU) {
     const fromSite = window.navigation && navigation.activation && navigation.activation.from;
     const arrivedFromSite = !!fromSite && new URL(fromSite.url).origin === location.origin;
     gsap.utils.toArray(
-      '.paper-hero h1, .paper-subtitle, .paper-meta-strip, .paper-section'
+      '.paper-hero h1, .paper-subtitle, .paper-meta-strip, .pg-head, .paper-section'
     )
     // arriving from another page on the site, the page transition already
     // brings in what's on screen; revealing it again would be a second motion
